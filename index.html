@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grid4</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#16181d">
+<style>
+:root{
+  --bg:#16181d; --panel:#1f2229; --line:#2d313a; --text:#e6e8ec; --dim:#8a909c;
+  --on:#4fc36b; --head:#353a45; --headon:#9be3ad; --edit:#5b8def; --queued:#d9a441; --playing:#2f5e3b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,sans-serif}
+header{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:16px;margin:0 8px 0 0;font-weight:600}
+button,select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover,select:hover{border-color:#4a505c}
+#play{min-width:70px}
+#play.on{background:var(--on);color:#0d1a10;border-color:var(--on)}
+.tempo{display:flex;gap:8px;align-items:center;color:var(--dim)}
+.tempo input{width:160px}
+.tempo b{color:var(--text);min-width:32px;font-weight:600}
+main{padding:16px;display:flex;flex-direction:column;gap:10px}
+.track{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;flex-wrap:wrap}
+.track.drop{border-color:var(--edit)}
+.ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:420px}
+.ctrl select{width:120px}
+.mode{width:100px}
+.clips{display:flex;gap:4px}
+.clip{width:34px;padding:6px 0;color:var(--dim)}
+.clip.full{color:var(--text);font-weight:600}
+.clip.playing{background:var(--playing)}
+.clip.queued{border-color:var(--queued)}
+.clip.edit{border-color:var(--edit);box-shadow:inset 0 0 0 1px var(--edit)}
+.steps{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;flex:1;min-width:380px}
+.step{height:34px;padding:0;background:#262a32}
+.step.beat{margin-left:6px}
+.step.on{background:var(--on);border-color:var(--on)}
+.step.head{background:var(--head)}
+.step.on.head{background:var(--headon);border-color:var(--headon)}
+footer{padding:0 16px 16px;color:var(--dim);font-size:13px}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Grid4</h1>
+  <button id="play">Play</button>
+  <label class="tempo">Tempo <input id="tempo" type="range" min="60" max="200" step="1"> <b id="bpm"></b> BPM</label>
+</header>
+<main id="tracks"></main>
+<footer>
+  Click a clip number to edit it. In Loop mode, clicking a clip also switches playback to it at the end of the bar.
+  Drop an audio file on a track (or use Load) to replace its sound. Space = play/stop.
+</footer>
+
+<script>
+const STEPS = 16, CLIPS = 4, KEY = 'babyseq-v1';
+const BUILTIN = ['kick', 'snare', 'hat', 'clap'];
+const MODES = ['loop', 'chain', 'once'];
+const MODE_LABEL = { loop: 'Loop', chain: 'Chain ↻', once: 'Chain once' };
+
+// ---------- state ----------
+let tempo = 110;
+const tracks = BUILTIN.map(s => ({
+  sound: s, useSample: false, buffer: null, sampleName: '',
+  mode: 'loop', edit: 0, playing: 0, queued: null,
+  clips: Array.from({ length: CLIPS }, () => Array(STEPS).fill(false))
+}));
+
+function setSteps(t, c, list) { list.forEach(s => tracks[t].clips[c][s] = true); }
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (!d) return false;
+    tempo = d.tempo || tempo;
+    d.tracks.forEach((s, i) => {
+      const t = tracks[i]; if (!t) return;
+      t.sound = BUILTIN.includes(s.sound) ? s.sound : t.sound;
+      t.mode = MODES.includes(s.mode) ? s.mode : 'loop';
+      t.edit = s.edit | 0;
+      t.clips = s.clips.map(c => c.map(Boolean));
+    });
+    return true;
+  } catch (e) { return false; }
+}
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({
+      tempo, tracks: tracks.map(t => ({ sound: t.sound, mode: t.mode, edit: t.edit, clips: t.clips }))
+    }));
+  } catch (e) {}
+}
+if (!load()) {
+  setSteps(0, 0, [0, 4, 8, 12]);
+  setSteps(1, 0, [4, 12]);
+  setSteps(2, 0, [2, 6, 10, 14]);
+}
+
+// ---------- audio ----------
+let ctx = null, master = null, noiseBuf = null;
+function ensureAudio() {
+  if (!ctx) {
+    ctx = new AudioContext();
+    const comp = ctx.createDynamicsCompressor();
+    master = ctx.createGain(); master.gain.value = 0.8;
+    master.connect(comp); comp.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+}
+function noise() {
+  if (!noiseBuf) {
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; return s;
+}
+function env(t, peak, decay) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(peak, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + decay);
+  g.connect(master); return g;
+}
+const SYNTH = {
+  kick(t) {
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    o.connect(env(t, 1, 0.45)); o.start(t); o.stop(t + 0.5);
+  },
+  snare(t) {
+    const n = noise(), f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 1200;
+    n.connect(f); f.connect(env(t, 0.6, 0.18)); n.start(t); n.stop(t + 0.2);
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 190;
+    o.connect(env(t, 0.5, 0.1)); o.start(t); o.stop(t + 0.12);
+  },
+  hat(t) {
+    const n = noise(), f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 7000;
+    n.connect(f); f.connect(env(t, 0.35, 0.05)); n.start(t); n.stop(t + 0.06);
+  },
+  clap(t) {
+    const n = noise(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 1.2;
+    g.gain.setValueAtTime(0, t);
+    [0, 0.01, 0.02].forEach(d => {
+      g.gain.setValueAtTime(0.7, t + d);
+      g.gain.exponentialRampToValueAtTime(0.1, t + d + 0.009);
+    });
+    g.gain.setValueAtTime(0.6, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    n.connect(f); f.connect(g); g.connect(master); n.start(t); n.stop(t + 0.3);
+  }
+};
+function trigger(i, time) {
+  const t = tracks[i];
+  if (t.useSample && t.buffer) {
+    const src = ctx.createBufferSource(); src.buffer = t.buffer;
+    src.connect(master); src.start(time);
+  } else SYNTH[t.sound](time);
+}
+
+// ---------- clock (lookahead scheduler) ----------
+let running = false, timer = null, nextTime = 0, step = 0, bar = 0, drawQ = [];
+let dispPlaying = tracks.map(t => t.playing);
+
+function start() {
+  ensureAudio();
+  tracks.forEach(t => { t.queued = null; t.playing = t.mode === 'loop' ? t.edit : 0; });
+  dispPlaying = tracks.map(t => t.playing);
+  step = 0; bar = 0; drawQ = [];
+  nextTime = ctx.currentTime + 0.06;
+  running = true;
+  timer = setInterval(scheduler, 25);
+  scheduler(); render();
+}
+function stop() {
+  clearInterval(timer); running = false; drawQ = [];
+  tracks.forEach(t => t.queued = null);
+  showHead(-1); render();
+}
+function scheduler() {
+  const stepLen = 60 / tempo / 4;
+  while (nextTime < ctx.currentTime + 0.1) {
+    scheduleStep(step, nextTime);
+    nextTime += stepLen;
+    step = (step + 1) % STEPS;
+    if (step === 0) bar++;
+  }
+}
+function scheduleStep(s, time) {
+  if (s === 0 && bar > 0) {
+    tracks.forEach(t => {
+      if (t.mode === 'loop') {
+        if (t.queued !== null) { t.playing = t.queued; t.queued = null; }
+      } else if (t.mode === 'chain') {
+        t.playing = t.playing < 0 ? 0 : (t.playing + 1) % CLIPS;
+      } else { // once
+        t.playing = (t.playing < 0 || t.playing >= CLIPS - 1) ? -1 : t.playing + 1;
+      }
+    });
+  }
+  tracks.forEach((t, i) => {
+    if (t.playing >= 0 && t.clips[t.playing][s]) {
+      try { trigger(i, time); } catch (e) {}
+    }
+  });
+  drawQ.push({ time, step: s, playing: tracks.map(t => t.playing) });
+}
+function draw() {
+  if (ctx && running) {
+    let changed = false;
+    while (drawQ.length && drawQ[0].time <= ctx.currentTime) {
+      const e = drawQ.shift();
+      showHead(e.step);
+      if (e.playing.some((p, i) => p !== dispPlaying[i])) { dispPlaying = e.playing; changed = true; }
+    }
+    if (changed) render();
+  }
+  requestAnimationFrame(draw);
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+const playBtn = $('play'), tempoIn = $('tempo'), bpm = $('bpm');
+let headCol = -1;
+
+const refs = tracks.map((t, i) => {
+  const row = el('div', 'track'), ctrl = el('div', 'ctrl');
+  const sel = el('select');
+  sel.onchange = () => {
+    if (sel.value === 'sample') t.useSample = true;
+    else { t.sound = sel.value; t.useSample = false; }
+    save();
+  };
+  const mode = el('button', 'mode');
+  mode.onclick = () => {
+    t.mode = MODES[(MODES.indexOf(t.mode) + 1) % MODES.length];
+    if (t.mode === 'loop' && t.playing < 0) t.queued = t.edit;
+    if (t.mode !== 'loop') t.queued = null;
+    save(); render();
+  };
+  const clipsBox = el('div', 'clips');
+  const clipBtns = [...Array(CLIPS)].map((_, c) => {
+    const b = el('button', 'clip'); b.textContent = c + 1;
+    b.onclick = () => clickClip(i, c);
+    clipsBox.append(b); return b;
+  });
+  const file = el('input'); file.type = 'file'; file.accept = 'audio/*';
+  file.onchange = () => { if (file.files[0]) loadSample(i, file.files[0]); file.value = ''; };
+  const loadBtn = el('button'); loadBtn.textContent = 'Load'; loadBtn.onclick = () => file.click();
+  const clearBtn = el('button'); clearBtn.textContent = 'Clear';
+  clearBtn.title = 'Clear the clip being edited';
+  clearBtn.onclick = () => { t.clips[t.edit].fill(false); save(); render(); };
+  ctrl.append(sel, mode, clipsBox, loadBtn, clearBtn, file);
+
+  const steps = el('div', 'steps');
+  const stepBtns = [...Array(STEPS)].map((_, s) => {
+    const b = el('button', 'step' + (s % 4 === 0 && s > 0 ? ' beat' : ''));
+    b.onclick = () => toggleStep(i, s);
+    steps.append(b); return b;
+  });
+
+  row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drop'); });
+  row.addEventListener('dragleave', () => row.classList.remove('drop'));
+  row.addEventListener('drop', e => {
+    e.preventDefault(); row.classList.remove('drop');
+    const f = e.dataTransfer.files[0]; if (f) loadSample(i, f);
+  });
+
+  row.append(ctrl, steps);
+  $('tracks').append(row);
+  return { sel, mode, clipBtns, stepBtns };
+});
+
+function buildOptions(i) {
+  const t = tracks[i], sel = refs[i].sel;
+  sel.innerHTML = '';
+  BUILTIN.forEach(s => { const o = el('option'); o.value = s; o.textContent = s[0].toUpperCase() + s.slice(1); sel.append(o); });
+  if (t.buffer) {
+    const o = el('option'); o.value = 'sample';
+    o.textContent = t.sampleName.length > 14 ? t.sampleName.slice(0, 13) + '…' : t.sampleName;
+    sel.append(o);
+  }
+}
+async function loadSample(i, f) {
+  try {
+    ensureAudio();
+    const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+    const t = tracks[i];
+    t.buffer = buf; t.useSample = true; t.sampleName = f.name.replace(/\.[^.]+$/, '');
+    buildOptions(i); render();
+  } catch (e) { alert('Could not read that file as audio.'); }
+}
+function clickClip(i, c) {
+  const t = tracks[i];
+  t.edit = c;
+  if (t.mode === 'loop') {
+    if (running) t.queued = (c === t.playing) ? null : c;
+    else t.playing = c;
+  }
+  save(); render();
+}
+function toggleStep(i, s) {
+  const t = tracks[i], clip = t.clips[t.edit];
+  clip[s] = !clip[s];
+  if (clip[s] && !running) { ensureAudio(); try { trigger(i, ctx.currentTime); } catch (e) {} }
+  save(); render();
+}
+function showHead(s) {
+  if (headCol >= 0) refs.forEach(r => r.stepBtns[headCol].classList.remove('head'));
+  headCol = s;
+  if (s >= 0) refs.forEach(r => r.stepBtns[s].classList.add('head'));
+}
+function render() {
+  tracks.forEach((t, i) => {
+    const r = refs[i];
+    r.sel.value = t.useSample && t.buffer ? 'sample' : t.sound;
+    r.mode.textContent = MODE_LABEL[t.mode];
+    r.clipBtns.forEach((b, c) => {
+      b.classList.toggle('edit', c === t.edit);
+      b.classList.toggle('playing', running && dispPlaying[i] === c);
+      b.classList.toggle('queued', t.queued === c);
+      b.classList.toggle('full', t.clips[c].some(Boolean));
+    });
+    r.stepBtns.forEach((b, s) => b.classList.toggle('on', t.clips[t.edit][s]));
+  });
+  playBtn.classList.toggle('on', running);
+  playBtn.textContent = running ? 'Stop' : 'Play';
+}
+
+playBtn.onclick = () => running ? stop() : start();
+tempoIn.value = tempo; bpm.textContent = tempo;
+tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; save(); };
+
+// Keep buttons from taking focus, so Space always means play/stop
+document.addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.target.closest('input,select')) { e.preventDefault(); running ? stop() : start(); }
+});
+// Stop a stray file drop from navigating away from the page
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+tracks.forEach((_, i) => buildOptions(i));
+render();
+requestAnimationFrame(draw);
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
