@@ -1,6 +1,6 @@
 // Offline cache. Serves the saved copy instantly, then refreshes it in the
 // background, so an update you upload shows up on the next launch.
-const CACHE = 'grid4-v1';
+const CACHE = 'grid4-v2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
