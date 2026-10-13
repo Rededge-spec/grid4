@@ -59,6 +59,7 @@ button:hover,select:hover{border-color:#4a505c}
 .seg button.on{background:var(--tc);border-color:var(--tc);color:#15161a;font-weight:600}
 .scroller{position:relative;overflow-x:auto;flex:1;min-width:0}
 #songcv{display:block;touch-action:none;cursor:pointer}
+#playhead{box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 #playhead{position:absolute;top:0;left:0;width:2px;background:#fff;pointer-events:none}
 
 /* track editors */
@@ -124,7 +125,7 @@ input[type=file]{display:none}
 </section>
 
 <section class="song">
-  <div class="heads" id="heads"><div class="head-sp">Click the numbers to set the start</div><div class="lanehead pichead" style="--tc:#8a909c">Picture</div></div>
+  <div class="heads" id="heads"><div class="head-sp">Drag here to move the playhead</div><div class="lanehead pichead" style="--tc:#8a909c">Picture</div></div>
   <div class="scroller" id="scroller"><canvas id="songcv"></canvas><div id="playhead" hidden></div></div>
 </section>
 
@@ -132,7 +133,7 @@ input[type=file]{display:none}
 <footer>
   Each track is either <b>Loop</b> (repeats its selected clip for the whole song) or <b>Arrange</b>
   (plays only where you put it: choose a clip number below, then click or drag across bars in its lane; click a bar again to empty it).
-  The song plays from the start marker to the end and stops. Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches.
+  Drag along the bar numbers or the picture row to move the playhead; the video follows. Play runs from the playhead to the end of the song and stops. Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches.
   Drop an audio file on a track to replace its sound. Space = play/stop.
 </footer>
 
@@ -151,7 +152,7 @@ const blank = () => Array(STEPS).fill(null);
 const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
 
 // ---------- state ----------
-let tempo = 110, lengthSec = 60, startBar = 0, openRoll = -1;
+let tempo = 110, lengthSec = 60, startStep = 0, openRoll = -1;   // startStep: playhead position in 16th-note steps from 0:00
 
 function makeTrack(sound, i) {
   const oct = DEF_OCT[sound] ?? 3;
@@ -166,6 +167,7 @@ const tracks = ['kick', 'snare', 'hat', 'bass'].map(makeTrack);
 const isPitched = t => (t.useSample && t.buffer) || SYNTHS.includes(t.sound);
 const trackName = t => (t.useSample && t.buffer) ? t.sampleName : LABEL[t.sound];
 const barSec = () => 240 / tempo;                       // 4 beats per bar
+const stepSec = () => barSec() / STEPS;
 const nBars = () => Math.min(MAXBARS, Math.max(4, Math.round(lengthSec / barSec() / 4) * 4));
 const clipAt = (t, b) => t.mode === 'loop' ? t.sel : t.bars[b];
 
@@ -184,7 +186,7 @@ function load() {
     if (d) {
       tempo = d.tempo || tempo;
       lengthSec = d.lengthSec || lengthSec;
-      startBar = Math.max(0, d.startBar | 0);
+      startStep = Number.isInteger(d.startStep) ? Math.max(0, d.startStep) : Math.max(0, d.startBar | 0) * STEPS;
       (d.tracks || []).forEach((s, i) => {
         const t = tracks[i]; if (!t || !s) return;
         readTrack(t, s);
@@ -213,7 +215,7 @@ function load() {
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      tempo, lengthSec, startBar,
+      tempo, lengthSec, startStep,
       tracks: tracks.map(t => ({ sound: t.sound, mode: t.mode, sel: t.sel, oct: t.oct, lastNote: t.lastNote, clips: t.clips, bars: t.bars }))
     }));
   } catch (e) {}
@@ -331,10 +333,10 @@ let pos0 = 0, t0 = 0;   // song time (seconds) at the moment playback began, and
 
 function start() {
   ensureAudio();
-  if (startBar >= nBars()) startBar = 0;
-  songBar = startBar; step = 0; finished = false; drawQ = [];
+  if (startStep >= nBars() * STEPS) startStep = 0;
+  songBar = Math.floor(startStep / STEPS); step = startStep % STEPS; finished = false; drawQ = [];
   nextTime = ctx.currentTime + 0.06;
-  pos0 = startBar * barSec(); t0 = nextTime;
+  pos0 = startStep * stepSec(); t0 = nextTime;
   running = true;
   timer = setInterval(scheduler, 25);
   scheduler(); render();
@@ -414,7 +416,7 @@ function syncPicture(sec, playing) {
     if (Math.abs(v.currentTime - h.off) > 0.04) v.currentTime = h.off;
   }
 }
-function picStill() { if (pics.length && !running) syncPicture(startBar * barSec(), false); }
+function picStill() { if (pics.length && !running) syncPicture(startStep * stepSec(), false); }
 async function addPictures(files) {
   const list = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   for (const f of list) {
@@ -696,7 +698,7 @@ function drawSong() {
     cx.fillStyle = '#3a3f4a'; cx.fillRect(b * BW, RH - 6, 1, 6);
     cx.fillStyle = '#8a909c'; cx.fillText(b + 1, b * BW + 3, RH / 2 - 1);
   }
-  const sx = startBar * BW;
+  const sx = startStep / STEPS * BW;
   cx.fillStyle = '#d9a441';
   cx.beginPath(); cx.moveTo(sx, RH - 9); cx.lineTo(sx + 9, RH - 9); cx.lineTo(sx, RH); cx.closePath(); cx.fill();
 
@@ -752,14 +754,28 @@ let painting = null;
 function hit(e) {
   const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   const b = Math.floor(x / BW);
-  if (y < RH + PH) return { b, lane: -1 };              // ruler or picture row: set the start
+  if (y < RH + PH) return { b, x, lane: -1 };           // ruler or picture row: move the playhead
   const k = Math.floor((y - TOP) / (LH + GAP)), inLane = y >= TOP && (y - TOP) - k * (LH + GAP) < LH;
   return { b, lane: k < tracks.length && inLane ? k : -2 };
 }
+// Dragging in the ruler or picture row moves the playhead (and the video with it).
+// If the song is playing it pauses while you drag and carries on from where you let go.
+let scrub = null;
+function scrubTo(x) {
+  const total = nBars() * STEPS;
+  startStep = Math.min(total - 1, Math.max(0, Math.round(x / BW * STEPS)));
+  showHead(-1, -1); picStill();
+}
 cv.addEventListener('pointerdown', e => {
-  const { b, lane } = hit(e);
+  const { b, x, lane } = hit(e);
+  if (lane === -1) {
+    scrub = { resume: running };
+    if (running) stop();
+    cv.setPointerCapture(e.pointerId);
+    scrubTo(x);
+    return;
+  }
   if (b < 0 || b >= nBars() || lane === -2) return;
-  if (lane === -1) { startBar = b; save(); drawSong(); showHead(-1, -1); picStill(); return; }
   const t = tracks[lane];
   if (t.mode !== 'arrange') return;
   const v = t.bars[b] === t.sel ? -1 : t.sel;
@@ -769,20 +785,30 @@ cv.addEventListener('pointerdown', e => {
   drawSong();
 });
 cv.addEventListener('pointermove', e => {
+  if (scrub) { scrubTo(hit(e).x); return; }
   if (!painting) return;
   const { b } = hit(e);
   if (b < 0 || b >= nBars()) return;
   const t = tracks[painting.lane];
   if (t.bars[b] !== painting.v) { t.bars[b] = painting.v; drawSong(); }
 });
-const endPaint = () => { if (painting) { painting = null; save(); } };
+const endPaint = () => {
+  if (painting) { painting = null; save(); }
+  if (scrub) { const resume = scrub.resume; scrub = null; save(); drawSong(); if (resume) start(); }
+};
 cv.addEventListener('pointerup', endPaint);
 cv.addEventListener('pointercancel', endPaint);
 
 // ----- drawing -----
 function showHead(s, bar) {
   document.querySelectorAll('.head').forEach(e => e.classList.remove('head'));
-  if (s < 0) { playhead.hidden = true; $('pos').textContent = fmt(startBar * barSec()) + ' / ' + fmt(nBars() * barSec()); return; }
+  if (s < 0) {   // stopped: the playhead rests at the start position
+    const x = startStep / STEPS * BW;
+    playhead.hidden = false;
+    playhead.style.transform = `translateX(${x}px)`;
+    $('pos').textContent = fmt(startStep * stepSec()) + ' / ' + fmt(nBars() * barSec());
+    return;
+  }
   refs.forEach(r => r.stepBtns[s].classList.add('head'));
   if (openRoll >= 0) refs[openRoll].rollCells.forEach(row => row[s].classList.add('head'));
   const x = (bar + s / STEPS) * BW;
@@ -840,7 +866,7 @@ function setLength() {
   const s = Math.min(59, Math.max(0, parseInt($('lenS').value, 10) || 0));
   lengthSec = Math.max(10, m * 60 + s);
   $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
-  if (startBar >= nBars()) startBar = 0;
+  if (startStep >= nBars() * STEPS) startStep = 0;
   save(); render();
 }
 $('lenM').value = Math.floor(lengthSec / 60);
@@ -863,11 +889,11 @@ $('fitPic').onclick = () => {
   const bars = Math.min(MAXBARS, Math.max(4, Math.ceil(picTotal() / barSec() / 4) * 4));
   lengthSec = bars * barSec();
   $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
-  if (startBar >= nBars()) startBar = 0;
+  if (startStep >= nBars() * STEPS) startStep = 0;
   save(); render();
 };
 tempoIn.value = tempo; bpm.textContent = tempo;
-tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; if (startBar >= nBars()) startBar = 0; save(); render(); };
+tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; if (startStep >= nBars() * STEPS) startStep = 0; save(); render(); };
 
 // Keep buttons from taking focus, so Space always means play/stop
 document.addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });

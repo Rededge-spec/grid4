@@ -1,6 +1,6 @@
 // Online: always fetch the newest files from GitHub (and keep a copy).
 // Offline: fall back to the saved copy.
-const CACHE = 'grid4-v4';
+const CACHE = 'grid4-v5';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
