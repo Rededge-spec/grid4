@@ -10,65 +10,58 @@
 <style>
 :root{
   --bg:#16181d; --panel:#1f2229; --line:#2d313a; --text:#e6e8ec; --dim:#8a909c;
-  --on:#4fc36b; --head:#353a45; --headon:#9be3ad; --edit:#5b8def; --queued:#d9a441; --playing:#2f5e3b;
-  --c1:#4fc36b; --c2:#5b8def; --c3:#d9a441; --c4:#c46fd9;
-  --key:#272b33; --blackkey:#1c1e23;
+  --head:#353a45; --key:#272b33; --blackkey:#1c1e23; --start:#d9a441;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,sans-serif}
-header{display:flex;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-h1{font-size:16px;margin:0 8px 0 0;font-weight:600}
-button,select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+header{display:flex;gap:18px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:16px;margin:0 4px 0 0;font-weight:600}
+button,select,input{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button,select{cursor:pointer}
 button:hover,select:hover{border-color:#4a505c}
 #play{min-width:70px}
-#play.on{background:var(--on);color:#0d1a10;border-color:var(--on)}
-.tabs{display:flex}
-.tabs button{border-radius:0;min-width:80px}
-.tabs button:first-child{border-radius:6px 0 0 6px}
-.tabs button:last-child{border-radius:0 6px 6px 0;margin-left:-1px}
-.tabs button.on{background:#2b3140;border-color:var(--edit);position:relative;z-index:1}
-.tabs button.pending{border-color:var(--queued);position:relative;z-index:2}
-.tempo{display:flex;gap:8px;align-items:center;color:var(--dim)}
-.tempo input{width:160px}
-.tempo b{color:var(--text);min-width:32px;font-weight:600}
+#play.on{background:#4fc36b;color:#0d1a10;border-color:#4fc36b}
+.hgroup{display:flex;gap:8px;align-items:center;color:var(--dim)}
+.hgroup b{color:var(--text);font-weight:600}
+#tempo{width:150px;padding:0}
+.len input{width:52px;padding:4px 6px;text-align:right}
+#pos{font-variant-numeric:tabular-nums;color:var(--text);min-width:90px}
 
-#arrange{padding:16px 16px 0}
-.arr-bar{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--dim)}
-.arr-bar b{color:var(--text);min-width:22px;text-align:center}
-.arr-wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px}
-.arr{display:grid;gap:3px;width:max-content}
-.arr .lab{color:var(--dim);font-size:13px;display:flex;align-items:center;padding-right:6px;white-space:nowrap;overflow:hidden}
-.arr .num{padding:2px 0;font-size:12px;color:var(--dim);background:transparent;border-color:transparent}
-.arr .num.start{color:var(--text);border-color:var(--queued)}
-.arr .num.now{color:#fff;background:var(--head)}
-.arr .cell{height:30px;padding:0;font-size:12px;font-weight:700;color:#0d1a10;background:#262a32}
-.arr .cell.c0{background:var(--c1)}
-.arr .cell.c1{background:var(--c2)}
-.arr .cell.c2{background:var(--c3)}
-.arr .cell.c3{background:var(--c4)}
-.arr .cell.now{box-shadow:inset 0 0 0 2px #e6e8ec}
-.arr .cell.sel{border-color:#e6e8ec}
+/* song timeline */
+.song{display:flex;gap:10px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.heads{width:190px;flex:none}
+.head-sp{height:22px;color:var(--dim);font-size:12px;display:flex;align-items:center}
+.lanehead{height:42px;margin-bottom:6px;display:flex;align-items:center;gap:6px;border-left:4px solid var(--tc);padding-left:8px}
+.lanehead:last-child{margin-bottom:0}
+.lanehead .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex}
+.seg button{padding:3px 8px;font-size:12px;border-radius:0}
+.seg button:first-child{border-radius:5px 0 0 5px}
+.seg button:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
+.seg button.on{background:var(--tc);border-color:var(--tc);color:#15161a;font-weight:600}
+.scroller{position:relative;overflow-x:auto;flex:1;min-width:0}
+#songcv{display:block;touch-action:none;cursor:pointer}
+#playhead{position:absolute;top:0;left:0;width:2px;background:#fff;pointer-events:none}
 
+/* track editors */
 main{padding:16px;display:flex;flex-direction:column;gap:10px}
-.track{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;flex-wrap:wrap}
-.track.drop{border-color:var(--edit)}
-.ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:420px}
+.track{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--tc);border-radius:8px;padding:10px;flex-wrap:wrap}
+.track.drop{border-color:var(--tc)}
+.ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:400px}
 .ctrl select{width:120px}
-.mode{width:100px}
-.notes.on{border-color:var(--edit);background:#2b3140}
+.notes.on{border-color:var(--tc)}
 .clips{display:flex;gap:4px}
 .clip{width:34px;padding:6px 0;color:var(--dim)}
 .clip.full{color:var(--text);font-weight:600}
-.clip.playing{background:var(--playing)}
-.clip.queued{border-color:var(--queued)}
-.clip.edit{border-color:var(--edit);box-shadow:inset 0 0 0 1px var(--edit)}
+.clip.playing{background:var(--tcd)}
+.clip.sel{border-color:var(--tc);box-shadow:inset 0 0 0 1px var(--tc)}
 .steps{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;flex:1;min-width:380px}
-.step{height:34px;padding:0;background:#262a32;font-size:11px;font-weight:600;color:#0d1a10;overflow:hidden}
+.step{height:34px;padding:0;background:#262a32;font-size:11px;font-weight:600;color:#15161a;overflow:hidden}
 .step.beat{margin-left:6px}
-.step.on{background:var(--on);border-color:var(--on)}
+.step.on{background:var(--tc);border-color:var(--tc)}
 .step.head{background:var(--head)}
-.step.on.head{background:var(--headon);border-color:var(--headon)}
+.step.on.head{background:var(--tc);filter:brightness(1.35)}
 
 .roll{flex-basis:100%;border-top:1px solid var(--line);padding-top:10px}
 .roll-top{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--dim);flex-wrap:wrap}
@@ -80,12 +73,12 @@ main{padding:16px;display:flex;flex-direction:column;gap:10px}
 .rk.black{background:var(--blackkey)}
 .rk.beat{margin-left:6px}
 .rk.head{background:var(--head)}
-.rk.on{background:var(--on)}
-.rk.on.head{background:var(--headon)}
-.rk.above{box-shadow:inset 0 3px 0 var(--on)}
-.rk.below{box-shadow:inset 0 -3px 0 var(--on)}
+.rk.on{background:var(--tc)}
+.rk.on.head{filter:brightness(1.35)}
+.rk.above{box-shadow:inset 0 3px 0 var(--tc)}
+.rk.below{box-shadow:inset 0 -3px 0 var(--tc)}
 
-footer{padding:0 16px 16px;color:var(--dim);font-size:13px}
+footer{padding:0 16px 16px;color:var(--dim);font-size:13px;max-width:1100px}
 input[type=file]{display:none}
 </style>
 </head>
@@ -93,45 +86,46 @@ input[type=file]{display:none}
 <header>
   <h1>Grid4</h1>
   <button id="play">Play</button>
-  <div class="tabs"><button id="tabLoops">Loops</button><button id="tabArr">Arrange</button></div>
-  <label class="tempo">Tempo <input id="tempo" type="range" min="60" max="200" step="1"> <b id="bpm"></b> BPM</label>
+  <span id="pos"></span>
+  <label class="hgroup">Tempo <input id="tempo" type="range" min="60" max="200" step="1"> <b id="bpm"></b> BPM</label>
+  <span class="hgroup len">Length <input id="lenM" type="number" min="0" max="10"> : <input id="lenS" type="number" min="0" max="59" step="5"> <span id="lenInfo"></span></span>
 </header>
-<section id="arrange" hidden>
-  <div class="arr-bar">
-    <button id="barsMinus">−</button> <b id="barsN"></b> bars <button id="barsPlus">+</button>
-  </div>
-  <div class="arr-wrap"><div class="arr" id="arrgrid"></div></div>
+
+<section class="song">
+  <div class="heads" id="heads"><div class="head-sp">Click the numbers to set the start</div></div>
+  <div class="scroller" id="scroller"><canvas id="songcv"></canvas><div id="playhead" hidden></div></div>
 </section>
+
 <main id="tracks"></main>
-<footer id="help"></footer>
+<footer>
+  Each track is either <b>Loop</b> (repeats its selected clip for the whole song) or <b>Arrange</b>
+  (plays only where you put it: choose a clip number below, then click or drag across bars in its lane; click a bar again to empty it).
+  The song plays from the start marker to the end and stops. Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches.
+  Drop an audio file on a track to replace its sound. Space = play/stop.
+</footer>
 
 <script>
-const STEPS = 16, CLIPS = 4, MAXBARS = 64, KEY = 'babyseq-v1';
+const STEPS = 16, CLIPS = 4, MAXBARS = 512, KEY = 'grid4-v2', OLDKEY = 'babyseq-v1';
+const COLORS = ['#f0894b', '#e6c440', '#4fa3e8', '#d46fd9'];
 const DRUMS = ['kick', 'snare', 'hat', 'clap'];
 const SYNTHS = ['bass', 'lead', 'pluck'];
 const SOUNDS = DRUMS.concat(SYNTHS);
 const LABEL = { kick: 'Kick', snare: 'Snare', hat: 'Hat', clap: 'Clap', bass: 'Bass', lead: 'Lead', pluck: 'Pluck' };
 const DEF_OCT = { bass: 2, lead: 4, pluck: 4 };
-const MODES = ['loop', 'chain', 'once'];
-const MODE_LABEL = { loop: 'Loop', chain: 'Chain ↻', once: 'Chain once' };
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const noteName = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
 const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
 const blank = () => Array(STEPS).fill(null);
-const HELP = {
-  loops: 'Loops: each track repeats its clip (Loop) or plays through clips 1→4 (Chain). Click a clip number to edit it; in Loop mode it also switches playback at the end of the bar. Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches. Drop an audio file on a track to replace its sound. Space = play/stop.',
-  arrange: 'Arrange: click a cell to choose which clip plays in that bar (blank → 1 → 2 → 3 → 4 → blank). Click a bar number to start playback from there. Clicking a cell also opens that clip for editing below. Switching pages while playing takes effect at the next bar.'
-};
+const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
 
 // ---------- state ----------
-let tempo = 110, page = 'loops', songLen = 8, startBar = 0, openRoll = -1, sel = null;
-const song = Array.from({ length: MAXBARS }, () => [-1, -1, -1, -1]);
+let tempo = 110, lengthSec = 60, startBar = 0, openRoll = -1;
 
-function makeTrack(sound) {
+function makeTrack(sound, i) {
   const oct = DEF_OCT[sound] ?? 3;
   return {
-    sound, useSample: false, buffer: null, sampleName: '',
-    mode: 'loop', edit: 0, playing: 0, queued: null,
+    sound, color: COLORS[i], useSample: false, buffer: null, sampleName: '',
+    mode: 'loop', sel: 0, bars: Array(MAXBARS).fill(-1),
     oct, lastNote: SYNTHS.includes(sound) ? 12 * (oct + 1) : 60,
     clips: Array.from({ length: CLIPS }, blank)
   };
@@ -139,45 +133,56 @@ function makeTrack(sound) {
 const tracks = ['kick', 'snare', 'hat', 'bass'].map(makeTrack);
 const isPitched = t => (t.useSample && t.buffer) || SYNTHS.includes(t.sound);
 const trackName = t => (t.useSample && t.buffer) ? t.sampleName : LABEL[t.sound];
+const barSec = () => 240 / tempo;                       // 4 beats per bar
+const nBars = () => Math.min(MAXBARS, Math.max(4, Math.round(lengthSec / barSec() / 4) * 4));
+const clipAt = (t, b) => t.mode === 'loop' ? t.sel : t.bars[b];
 
+function readTrack(t, s) {
+  if (SOUNDS.includes(s.sound)) t.sound = s.sound;
+  t.oct = Number.isInteger(s.oct) ? s.oct : (DEF_OCT[t.sound] ?? 3);
+  t.lastNote = Number.isInteger(s.lastNote) ? s.lastNote : (SYNTHS.includes(t.sound) ? 12 * (t.oct + 1) : 60);
+  t.clips = Array.from({ length: CLIPS }, (_, c) => Array.from({ length: STEPS }, (_, k) => {
+    const v = s.clips && s.clips[c] ? s.clips[c][k] : null;
+    return v === true ? 60 : (Number.isInteger(v) ? v : null);
+  }));
+}
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY));
-    if (!d) return false;
-    tempo = d.tempo || tempo;
-    page = d.page === 'arrange' ? 'arrange' : 'loops';
-    (d.tracks || []).forEach((s, i) => {
-      const t = tracks[i]; if (!t || !s) return;
-      if (SOUNDS.includes(s.sound)) t.sound = s.sound;
-      t.mode = MODES.includes(s.mode) ? s.mode : 'loop';
-      t.edit = Math.min(CLIPS - 1, Math.max(0, s.edit | 0));
-      t.oct = Number.isInteger(s.oct) ? s.oct : (DEF_OCT[t.sound] ?? 3);
-      t.lastNote = Number.isInteger(s.lastNote) ? s.lastNote : (SYNTHS.includes(t.sound) ? 12 * (t.oct + 1) : 60);
-      t.clips = Array.from({ length: CLIPS }, (_, c) => Array.from({ length: STEPS }, (_, k) => {
-        const v = s.clips && s.clips[c] ? s.clips[c][k] : null;
-        return v === true ? 60 : (Number.isInteger(v) ? v : null);   // older saves stored true/false
-      }));
-    });
-    if (Array.isArray(d.song)) {
-      d.song.slice(0, MAXBARS).forEach((b, i) => {
-        song[i] = [0, 1, 2, 3].map(k => {
-          const v = b ? b[k] : -1;
-          return Number.isInteger(v) && v >= -1 && v < CLIPS ? v : -1;
+    if (d) {
+      tempo = d.tempo || tempo;
+      lengthSec = d.lengthSec || lengthSec;
+      startBar = Math.max(0, d.startBar | 0);
+      (d.tracks || []).forEach((s, i) => {
+        const t = tracks[i]; if (!t || !s) return;
+        readTrack(t, s);
+        t.mode = s.mode === 'arrange' ? 'arrange' : 'loop';
+        t.sel = Math.min(CLIPS - 1, Math.max(0, s.sel | 0));
+        if (Array.isArray(s.bars)) s.bars.slice(0, MAXBARS).forEach((v, b) => {
+          t.bars[b] = Number.isInteger(v) && v >= -1 && v < CLIPS ? v : -1;
         });
       });
-      songLen = Math.min(MAXBARS, Math.max(1, (d.songLen | 0) || 8));
-      startBar = Math.min(songLen - 1, Math.max(0, d.startBar | 0));
-    } else {
-      for (let b = 0; b < 8; b++) song[b] = [0, 0, 0, 0];
+      return true;
     }
-    return true;
-  } catch (e) { return false; }
+    // Bring across sounds and clips from the earlier version
+    const old = JSON.parse(localStorage.getItem(OLDKEY));
+    if (old) {
+      tempo = old.tempo || tempo;
+      (old.tracks || []).forEach((s, i) => {
+        const t = tracks[i]; if (!t || !s) return;
+        readTrack(t, s);
+        t.sel = Math.min(CLIPS - 1, Math.max(0, s.edit | 0));
+      });
+      return true;
+    }
+  } catch (e) {}
+  return false;
 }
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      tempo, page, songLen, startBar, song,
-      tracks: tracks.map(t => ({ sound: t.sound, mode: t.mode, edit: t.edit, oct: t.oct, lastNote: t.lastNote, clips: t.clips }))
+      tempo, lengthSec, startBar,
+      tracks: tracks.map(t => ({ sound: t.sound, mode: t.mode, sel: t.sel, oct: t.oct, lastNote: t.lastNote, clips: t.clips, bars: t.bars }))
     }));
   } catch (e) {}
 }
@@ -187,9 +192,9 @@ if (!load()) {
   on(0, 1, [0, 4, 8, 10, 12]); on(1, 1, [4, 12, 15]); on(2, 1, [0, 2, 4, 6, 8, 10, 12, 14]);
   const line = { 0: 36, 3: 36, 6: 43, 8: 41, 10: 39, 12: 36, 14: 34 };
   Object.entries(line).forEach(([s, n]) => { tracks[3].clips[0][s] = n; tracks[3].clips[1][s] = n + 5; });
-  song[0] = [0, -1, 0, -1];
-  for (let b = 1; b < 4; b++) song[b] = [0, 0, 0, 0];
-  for (let b = 4; b < 8; b++) song[b] = [1, 1, 1, 1];
+  // Bass is arranged: silent for 4 bars, then alternates its two clips
+  tracks[3].mode = 'arrange';
+  for (let b = 4; b < 28; b++) tracks[3].bars[b] = Math.floor((b - 4) / 2) % 2;
 }
 
 // ---------- audio ----------
@@ -287,84 +292,52 @@ function preview(i, note) {
   try { trigger(i, ctx.currentTime, note, 60 / tempo / 4); } catch (e) {}
 }
 
-// ---------- clock (lookahead scheduler) ----------
-let running = false, timer = null, nextTime = 0, step = 0, bar = 0, drawQ = [];
-let playMode = 'loops', pendingMode = null, songBar = 0;
-let dispPlaying = tracks.map(t => t.playing), dispBar = -1, dispMode = 'loops';
+// ---------- clock: plays from the start marker to the end of the song, then stops ----------
+let running = false, timer = null, nextTime = 0, step = 0, songBar = 0, finished = false, endTime = 0, drawQ = [];
+let dispPlaying = tracks.map(() => -1);
 
-function initPlaying() {
-  if (playMode === 'arrange') {
-    songBar = startBar < songLen ? startBar : 0;
-    tracks.forEach((t, i) => { t.queued = null; t.playing = song[songBar][i]; });
-  } else {
-    tracks.forEach(t => { t.queued = null; t.playing = t.mode === 'loop' ? t.edit : 0; });
-  }
-}
 function start() {
   ensureAudio();
-  playMode = page; pendingMode = null;
-  initPlaying();
-  dispPlaying = tracks.map(t => t.playing);
-  dispBar = playMode === 'arrange' ? songBar : -1; dispMode = playMode;
-  step = 0; bar = 0; drawQ = [];
+  if (startBar >= nBars()) startBar = 0;
+  songBar = startBar; step = 0; finished = false; drawQ = [];
   nextTime = ctx.currentTime + 0.06;
   running = true;
   timer = setInterval(scheduler, 25);
   scheduler(); render();
 }
 function stop() {
-  clearInterval(timer); running = false; drawQ = []; pendingMode = null;
-  tracks.forEach(t => t.queued = null);
-  dispBar = -1;
-  showHead(-1); render();
+  clearInterval(timer); running = false; finished = false; drawQ = [];
+  dispPlaying = tracks.map(() => -1);
+  showHead(-1, -1); render();
 }
 function scheduler() {
   const len = 60 / tempo / 4;
-  while (nextTime < ctx.currentTime + 0.1) {
-    scheduleStep(step, nextTime, len);
+  while (!finished && nextTime < ctx.currentTime + 0.1) {
+    if (step === 0 && songBar >= nBars()) { finished = true; endTime = nextTime; break; }
+    const playing = tracks.map(t => clipAt(t, songBar));
+    tracks.forEach((t, i) => {
+      const c = playing[i];
+      if (c >= 0) {
+        const n = t.clips[c][step];
+        if (n !== null) { try { trigger(i, nextTime, n, len); } catch (e) {} }
+      }
+    });
+    drawQ.push({ time: nextTime, step, bar: songBar, playing });
     nextTime += len;
     step = (step + 1) % STEPS;
-    if (step === 0) bar++;
+    if (step === 0) songBar++;
   }
-}
-function scheduleStep(s, time, len) {
-  if (s === 0 && bar > 0) {
-    if (pendingMode) {
-      playMode = pendingMode; pendingMode = null; initPlaying();
-    } else if (playMode === 'arrange') {
-      songBar = (songBar + 1) % songLen;
-      tracks.forEach((t, i) => t.playing = song[songBar][i]);
-    } else {
-      tracks.forEach(t => {
-        if (t.mode === 'loop') {
-          if (t.queued !== null) { t.playing = t.queued; t.queued = null; }
-        } else if (t.mode === 'chain') {
-          t.playing = t.playing < 0 ? 0 : (t.playing + 1) % CLIPS;
-        } else { // once
-          t.playing = (t.playing < 0 || t.playing >= CLIPS - 1) ? -1 : t.playing + 1;
-        }
-      });
-    }
-  }
-  tracks.forEach((t, i) => {
-    if (t.playing >= 0) {
-      const n = t.clips[t.playing][s];
-      if (n !== null) { try { trigger(i, time, n, len); } catch (e) {} }
-    }
-  });
-  drawQ.push({ time, step: s, playing: tracks.map(t => t.playing), bar: playMode === 'arrange' ? songBar : -1, mode: playMode });
 }
 function draw() {
   if (ctx && running) {
     let changed = false;
     while (drawQ.length && drawQ[0].time <= ctx.currentTime) {
       const e = drawQ.shift();
-      showHead(e.step);
+      showHead(e.step, e.bar);
       if (e.playing.some((p, i) => p !== dispPlaying[i])) { dispPlaying = e.playing; changed = true; }
-      if (e.bar !== dispBar) { dispBar = e.bar; changed = true; }
-      if (e.mode !== dispMode) { dispMode = e.mode; changed = true; }
     }
-    if (changed) render();
+    if (finished && !drawQ.length && ctx.currentTime >= endTime) stop();
+    else if (changed) renderClips();
   }
   requestAnimationFrame(draw);
 }
@@ -374,8 +347,26 @@ const $ = id => document.getElementById(id);
 const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 const playBtn = $('play'), tempoIn = $('tempo'), bpm = $('bpm');
 
+// lane headers beside the timeline
+const laneRefs = tracks.map((t, i) => {
+  const h = el('div', 'lanehead'); h.style.setProperty('--tc', t.color);
+  const nm = el('span', 'nm');
+  const seg = el('div', 'seg');
+  const bLoop = el('button'); bLoop.textContent = 'Loop';
+  const bArr = el('button'); bArr.textContent = 'Arrange';
+  bLoop.onclick = () => { t.mode = 'loop'; save(); render(); };
+  bArr.onclick = () => { t.mode = 'arrange'; save(); render(); };
+  seg.append(bLoop, bArr); h.append(nm, seg);
+  $('heads').append(h);
+  return { nm, bLoop, bArr };
+});
+
+// track editors
 const refs = tracks.map((t, i) => {
-  const row = el('div', 'track'), ctrl = el('div', 'ctrl');
+  const row = el('div', 'track');
+  row.style.setProperty('--tc', t.color);
+  row.style.setProperty('--tcd', t.color + '55');
+  const ctrl = el('div', 'ctrl');
   const sel = el('select');
   sel.onchange = () => {
     if (sel.value === 'sample') t.useSample = true;
@@ -387,17 +378,11 @@ const refs = tracks.map((t, i) => {
     if (openRoll === i) { if (isPitched(t)) buildRoll(i); else openRoll = -1; }
     save(); render();
   };
-  const mode = el('button', 'mode');
-  mode.onclick = () => {
-    t.mode = MODES[(MODES.indexOf(t.mode) + 1) % MODES.length];
-    if (t.mode === 'loop' && t.playing < 0) t.queued = t.edit;
-    if (t.mode !== 'loop') t.queued = null;
-    save(); render();
-  };
   const clipsBox = el('div', 'clips');
   const clipBtns = [...Array(CLIPS)].map((_, c) => {
     const b = el('button', 'clip'); b.textContent = c + 1;
-    b.onclick = () => clickClip(i, c);
+    b.title = 'Edit this clip. Loop tracks play it; Arrange tracks paint it into the timeline.';
+    b.onclick = () => { t.sel = c; save(); render(); };
     clipsBox.append(b); return b;
   });
   const notesBtn = el('button', 'notes'); notesBtn.textContent = 'Notes';
@@ -406,9 +391,9 @@ const refs = tracks.map((t, i) => {
   file.onchange = () => { if (file.files[0]) loadSample(i, file.files[0]); file.value = ''; };
   const loadBtn = el('button'); loadBtn.textContent = 'Load'; loadBtn.onclick = () => file.click();
   const clearBtn = el('button'); clearBtn.textContent = 'Clear';
-  clearBtn.title = 'Clear the clip being edited';
-  clearBtn.onclick = () => { t.clips[t.edit].fill(null); save(); render(); };
-  ctrl.append(sel, mode, clipsBox, notesBtn, loadBtn, clearBtn, file);
+  clearBtn.title = 'Clear the selected clip';
+  clearBtn.onclick = () => { t.clips[t.sel].fill(null); save(); render(); };
+  ctrl.append(sel, clipsBox, notesBtn, loadBtn, clearBtn, file);
 
   const steps = el('div', 'steps');
   const stepBtns = [...Array(STEPS)].map((_, s) => {
@@ -417,7 +402,6 @@ const refs = tracks.map((t, i) => {
     steps.append(b); return b;
   });
 
-  // Note editor (piano roll) for this track, hidden until opened
   const roll = el('div', 'roll'); roll.hidden = true;
   const top = el('div', 'roll-top');
   const rollTitle = el('span', 'title');
@@ -441,7 +425,7 @@ const refs = tracks.map((t, i) => {
 
   row.append(ctrl, steps, roll);
   $('tracks').append(row);
-  return { sel, mode, clipBtns, notesBtn, stepBtns, roll, rollTitle, rollRange, rollGrid, rollCells: [], rollNotes: [] };
+  return { sel, clipBtns, notesBtn, stepBtns, roll, rollTitle, rollRange, rollGrid, rollCells: [], rollNotes: [] };
 });
 
 function buildOptions(i) {
@@ -467,17 +451,8 @@ async function loadSample(i, f) {
     buildOptions(i); render();
   } catch (e) { alert('Could not read that file as audio.'); }
 }
-function clickClip(i, c) {
-  const t = tracks[i];
-  t.edit = c;
-  if (page === 'loops' && t.mode === 'loop') {
-    if (running && playMode === 'loops') t.queued = (c === t.playing) ? null : c;
-    else if (!running) t.playing = c;
-  }
-  save(); render();
-}
 function toggleStep(i, s) {
-  const t = tracks[i], clip = t.clips[t.edit];
+  const t = tracks[i], clip = t.clips[t.sel];
   if (clip[s] !== null) clip[s] = null;
   else {
     clip[s] = isPitched(t) ? t.lastNote : 60;
@@ -510,90 +485,133 @@ function shiftOct(i, d) {
   buildRoll(i); save(); render();
 }
 function rollClick(i, n, s) {
-  const t = tracks[i], clip = t.clips[t.edit];
+  const t = tracks[i], clip = t.clips[t.sel];
   if (clip[s] === n) clip[s] = null;
   else { clip[s] = n; t.lastNote = n; if (!running) preview(i, n); }
   save(); render();
 }
 
-// ----- arrangement -----
-const arrGrid = $('arrgrid');
-let arrNums = [], arrCells = [], arrLabs = [];
-function buildArr() {
-  arrGrid.innerHTML = '';
-  arrGrid.style.gridTemplateColumns = `64px repeat(${songLen}, 36px)`;
-  arrGrid.append(el('div', 'lab'));
-  arrNums = [...Array(songLen)].map((_, b) => {
-    const x = el('button', 'num'); x.textContent = b + 1; x.title = 'Start playback from this bar';
-    x.onclick = () => { startBar = b; save(); render(); };
-    arrGrid.append(x); return x;
-  });
-  arrCells = []; arrLabs = [];
-  tracks.forEach((t, i) => {
-    const l = el('div', 'lab'); arrGrid.append(l); arrLabs.push(l);
-    arrCells.push([...Array(songLen)].map((_, b) => {
-      const c = el('button', 'cell'); c.onclick = () => arrClick(i, b);
-      arrGrid.append(c); return c;
-    }));
-  });
-}
-function arrClick(i, b) {
-  const v = song[b][i], nv = v >= CLIPS - 1 ? -1 : v + 1;
-  song[b][i] = nv; sel = { i, b };
-  if (nv >= 0) {
-    tracks[i].edit = nv;
-    if (isPitched(tracks[i]) && openRoll !== i) setRoll(i);
+// ----- song timeline (one canvas: ruler on top, one lane per track) -----
+const cv = $('songcv'), cx = cv.getContext('2d'), scroller = $('scroller'), playhead = $('playhead');
+const BW = 26, RH = 22, LH = 42, GAP = 6;
+const laneY = i => RH + i * (LH + GAP);
+const songH = RH + tracks.length * LH + (tracks.length - 1) * GAP;
+
+function drawSong() {
+  const nb = nBars(), dpr = window.devicePixelRatio || 1, W = nb * BW + 1, H = songH;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    playhead.style.height = H + 'px';
   }
-  save(); render();
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  cx.font = '11px "Segoe UI", system-ui, sans-serif';
+  cx.textBaseline = 'middle';
+
+  // ruler: bar numbers every 4 bars, start marker
+  for (let b = 0; b < nb; b += 4) {
+    cx.fillStyle = '#3a3f4a'; cx.fillRect(b * BW, RH - 6, 1, 6);
+    cx.fillStyle = '#8a909c'; cx.fillText(b + 1, b * BW + 3, RH / 2 - 1);
+  }
+  const sx = startBar * BW;
+  cx.fillStyle = '#d9a441';
+  cx.beginPath(); cx.moveTo(sx, RH - 9); cx.lineTo(sx + 9, RH - 9); cx.lineTo(sx, RH); cx.closePath(); cx.fill();
+
+  tracks.forEach((t, i) => {
+    const y = laneY(i), pitched = isPitched(t);
+    cx.fillStyle = '#1b1e24'; cx.fillRect(0, y, W, LH);
+    for (let b = 0; b < nb; b++) {
+      const x = b * BW;
+      if (b % 4 === 0) { cx.fillStyle = '#2c3039'; cx.fillRect(x, y, 1, LH); }
+      const c = clipAt(t, b);
+      if (c < 0) continue;
+      cx.globalAlpha = 0.3; cx.fillStyle = t.color;
+      cx.fillRect(x + 1, y + 1, BW - 2, LH - 2);
+      cx.globalAlpha = 1;
+      // tiny picture of the notes in this bar
+      const notes = t.clips[c], vals = notes.filter(v => v !== null);
+      if (vals.length) {
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        cx.fillStyle = t.color;
+        notes.forEach((v, s) => {
+          if (v === null) return;
+          const nx = x + 2 + s * (BW - 4) / 16;
+          const ny = pitched && hi > lo ? y + LH - 7 - (v - lo) / (hi - lo) * (LH - 18) : y + LH / 2 + 4;
+          cx.fillRect(nx, ny - 1.5, 1.5, 3);
+        });
+      }
+      if (b === 0 || clipAt(t, b - 1) !== c) { cx.fillStyle = '#e6e8ec'; cx.fillText(c + 1, x + 3, y + 9); }
+    }
+    cx.fillStyle = '#e6e8ec'; cx.fillRect(nb * BW, y, 1, LH);   // end of song
+  });
 }
-function setBars(n) {
-  songLen = Math.min(MAXBARS, Math.max(1, n));
-  if (startBar >= songLen) startBar = 0;
-  if (sel && sel.b >= songLen) sel = null;
-  buildArr(); save(); render();
+let painting = null;
+function hit(e) {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const b = Math.floor(x / BW);
+  if (y < RH) return { b, lane: -1 };
+  const k = Math.floor((y - RH) / (LH + GAP)), inLane = (y - RH) - k * (LH + GAP) < LH;
+  return { b, lane: k < tracks.length && inLane ? k : -2 };
 }
-function setPage(p) {
-  if (p === page) return;
-  page = p;
-  if (running) pendingMode = (p === playMode) ? null : p;
-  save(); render();
-}
+cv.addEventListener('pointerdown', e => {
+  const { b, lane } = hit(e);
+  if (b < 0 || b >= nBars() || lane === -2) return;
+  if (lane === -1) { startBar = b; save(); drawSong(); return; }
+  const t = tracks[lane];
+  if (t.mode !== 'arrange') return;
+  const v = t.bars[b] === t.sel ? -1 : t.sel;
+  painting = { lane, v };
+  t.bars[b] = v;
+  cv.setPointerCapture(e.pointerId);
+  drawSong();
+});
+cv.addEventListener('pointermove', e => {
+  if (!painting) return;
+  const { b } = hit(e);
+  if (b < 0 || b >= nBars()) return;
+  const t = tracks[painting.lane];
+  if (t.bars[b] !== painting.v) { t.bars[b] = painting.v; drawSong(); }
+});
+const endPaint = () => { if (painting) { painting = null; save(); } };
+cv.addEventListener('pointerup', endPaint);
+cv.addEventListener('pointercancel', endPaint);
 
 // ----- drawing -----
-function showHead(s) {
+function showHead(s, bar) {
   document.querySelectorAll('.head').forEach(e => e.classList.remove('head'));
-  if (s < 0) return;
+  if (s < 0) { playhead.hidden = true; $('pos').textContent = fmt(startBar * barSec()) + ' / ' + fmt(nBars() * barSec()); return; }
   refs.forEach(r => r.stepBtns[s].classList.add('head'));
   if (openRoll >= 0) refs[openRoll].rollCells.forEach(row => row[s].classList.add('head'));
+  const x = (bar + s / STEPS) * BW;
+  playhead.hidden = false;
+  playhead.style.transform = `translateX(${x}px)`;
+  if (x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth - 30) scroller.scrollLeft = Math.max(0, x - 40);
+  $('pos').textContent = fmt((bar + s / STEPS) * barSec()) + ' / ' + fmt(nBars() * barSec());
+}
+function renderClips() {
+  tracks.forEach((t, i) => refs[i].clipBtns.forEach((b, c) => {
+    b.classList.toggle('sel', c === t.sel);
+    b.classList.toggle('playing', running && dispPlaying[i] === c);
+    b.classList.toggle('full', t.clips[c].some(v => v !== null));
+  }));
 }
 function render() {
-  $('tabLoops').classList.toggle('on', page === 'loops');
-  $('tabArr').classList.toggle('on', page === 'arrange');
-  $('tabLoops').classList.toggle('pending', pendingMode === 'loops');
-  $('tabArr').classList.toggle('pending', pendingMode === 'arrange');
-  $('arrange').hidden = page !== 'arrange';
-  $('help').textContent = HELP[page];
-
   tracks.forEach((t, i) => {
-    const r = refs[i], pitched = isPitched(t), clip = t.clips[t.edit];
+    const r = refs[i], L = laneRefs[i], pitched = isPitched(t), clip = t.clips[t.sel];
+    L.nm.textContent = trackName(t);
+    L.bLoop.classList.toggle('on', t.mode === 'loop');
+    L.bArr.classList.toggle('on', t.mode === 'arrange');
     r.sel.value = t.useSample && t.buffer ? 'sample' : t.sound;
-    r.mode.textContent = MODE_LABEL[t.mode];
-    r.mode.hidden = page !== 'loops';
     r.notesBtn.hidden = !pitched;
     r.notesBtn.classList.toggle('on', openRoll === i);
-    r.clipBtns.forEach((b, c) => {
-      b.classList.toggle('edit', c === t.edit);
-      b.classList.toggle('playing', running && dispPlaying[i] === c);
-      b.classList.toggle('queued', t.queued === c);
-      b.classList.toggle('full', t.clips[c].some(v => v !== null));
-    });
     r.stepBtns.forEach((b, s) => {
       b.classList.toggle('on', clip[s] !== null);
       b.textContent = pitched && clip[s] !== null ? noteName(clip[s]) : '';
     });
     r.roll.hidden = openRoll !== i;
     if (openRoll === i) {
-      r.rollTitle.textContent = `${trackName(t)} · clip ${t.edit + 1}`;
+      r.rollTitle.textContent = `${trackName(t)} · clip ${t.sel + 1}`;
       const last = r.rollNotes.length - 1, top = r.rollNotes[0], bottom = r.rollNotes[last];
       r.rollCells.forEach((row, ri) => {
         const n = r.rollNotes[ri];
@@ -606,34 +624,31 @@ function render() {
       });
     }
   });
-
-  if (page === 'arrange') {
-    $('barsN').textContent = songLen;
-    arrNums.forEach((x, b) => {
-      x.classList.toggle('start', b === startBar);
-      x.classList.toggle('now', b === dispBar);
-    });
-    tracks.forEach((t, i) => {
-      arrLabs[i].textContent = trackName(t);
-      arrCells[i].forEach((c, b) => {
-        const v = song[b][i];
-        c.className = 'cell' + (v >= 0 ? ' c' + v : '') + (b === dispBar ? ' now' : '') +
-          (sel && sel.i === i && sel.b === b ? ' sel' : '');
-        c.textContent = v >= 0 ? v + 1 : '';
-      });
-    });
-  }
+  renderClips();
+  const nb = nBars();
+  $('lenInfo').textContent = `= ${nb} bars (${fmt(nb * barSec())})`;
+  if (!running) showHead(-1, -1);
+  drawSong();
   playBtn.classList.toggle('on', running);
   playBtn.textContent = running ? 'Stop' : 'Play';
 }
 
+function setLength() {
+  const m = Math.min(10, Math.max(0, parseInt($('lenM').value, 10) || 0));
+  const s = Math.min(59, Math.max(0, parseInt($('lenS').value, 10) || 0));
+  lengthSec = Math.max(10, m * 60 + s);
+  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(lengthSec % 60).padStart(2, '0');
+  if (startBar >= nBars()) startBar = 0;
+  save(); render();
+}
+$('lenM').value = Math.floor(lengthSec / 60);
+$('lenS').value = String(lengthSec % 60).padStart(2, '0');
+$('lenM').onchange = setLength;
+$('lenS').onchange = setLength;
+
 playBtn.onclick = () => running ? stop() : start();
-$('tabLoops').onclick = () => setPage('loops');
-$('tabArr').onclick = () => setPage('arrange');
-$('barsMinus').onclick = () => setBars(songLen - 1);
-$('barsPlus').onclick = () => setBars(songLen + 1);
 tempoIn.value = tempo; bpm.textContent = tempo;
-tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; save(); };
+tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; if (startBar >= nBars()) startBar = 0; save(); render(); };
 
 // Keep buttons from taking focus, so Space always means play/stop
 document.addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
@@ -645,7 +660,6 @@ window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
 
 tracks.forEach((_, i) => buildOptions(i));
-buildArr();
 render();
 requestAnimationFrame(draw);
 
