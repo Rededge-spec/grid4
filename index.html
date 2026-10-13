@@ -393,6 +393,13 @@ function picAt(sec) {
   }
   return null;
 }
+// Ask the video for a frame without queuing up requests: if it's still finding the last one,
+// just remember the newest target and go there when it's ready.
+function seekTo(v, t) {
+  v._target = t;
+  if (v.seeking) return;
+  if (Math.abs(v.currentTime - t) > 0.04) v.currentTime = t;
+}
 function syncPicture(sec, playing) {
   const h = picAt(sec), k = h ? h.k : -1;
   if (k !== activePic) {
@@ -400,8 +407,9 @@ function syncPicture(sec, playing) {
     activePic = k;
     if (k >= 0) {
       const v = pics[k].video;
-      v.hidden = false; v.currentTime = h.off;
-      if (playing) v.play().catch(() => {});
+      v.hidden = false;
+      if (playing) { v._target = null; v.currentTime = h.off; v.play().catch(() => {}); }
+      else seekTo(v, h.off);
     }
     $('picEmpty').hidden = k >= 0;
     return;
@@ -410,10 +418,10 @@ function syncPicture(sec, playing) {
   const v = pics[k].video;
   if (playing) {
     if (v.paused) v.play().catch(() => {});
-    if (Math.abs(v.currentTime - h.off) > 0.2) v.currentTime = h.off;
+    if (Math.abs(v.currentTime - h.off) > 0.2) { v._target = null; v.currentTime = h.off; }
   } else {
     if (!v.paused) v.pause();
-    if (Math.abs(v.currentTime - h.off) > 0.04) v.currentTime = h.off;
+    seekTo(v, h.off);
   }
 }
 function picStill() { if (pics.length && !running) syncPicture(startStep * stepSec(), false); }
@@ -423,6 +431,11 @@ async function addPictures(files) {
     const url = URL.createObjectURL(f);
     const video = document.createElement('video');
     video.preload = 'auto'; video.playsInline = true; video.muted = !picSound; video.hidden = true;
+    video._target = null;
+    video.addEventListener('seeked', () => {
+      const t = video._target;
+      if (t !== null && Math.abs(video.currentTime - t) > 0.04) video.currentTime = t;
+    });
     video.src = url;
     const dur = await new Promise(res => {
       video.onloadedmetadata = () => res(video.duration);
@@ -756,21 +769,30 @@ function hit(e) {
   const b = Math.floor(x / BW);
   if (y < RH + PH) return { b, x, lane: -1 };           // ruler or picture row: move the playhead
   const k = Math.floor((y - TOP) / (LH + GAP)), inLane = y >= TOP && (y - TOP) - k * (LH + GAP) < LH;
-  return { b, lane: k < tracks.length && inLane ? k : -2 };
+  return { b, x, lane: k < tracks.length && inLane ? k : -2 };
 }
 // Dragging in the ruler or picture row moves the playhead (and the video with it).
 // If the song is playing it pauses while you drag and carries on from where you let go.
-let scrub = null;
-function scrubTo(x) {
+let scrub = null, scrubX = 0, scrubRaf = 0;
+function applyScrub() {
+  scrubRaf = 0;
   const total = nBars() * STEPS;
-  startStep = Math.min(total - 1, Math.max(0, Math.round(x / BW * STEPS)));
-  showHead(-1, -1); picStill();
+  startStep = Math.min(total - 1, Math.max(0, Math.round(scrubX / BW * STEPS)));
+  playhead.style.transform = `translateX(${startStep / STEPS * BW}px)`;
+  $('pos').textContent = fmt(startStep * stepSec()) + ' / ' + fmt(nBars() * barSec());
+  picStill();
+}
+function scrubTo(x) {
+  if (!isFinite(x)) return;
+  scrubX = x;
+  if (!scrubRaf) scrubRaf = requestAnimationFrame(applyScrub);
 }
 cv.addEventListener('pointerdown', e => {
   const { b, x, lane } = hit(e);
   if (lane === -1) {
     scrub = { resume: running };
     if (running) stop();
+    playhead.hidden = false;
     cv.setPointerCapture(e.pointerId);
     scrubTo(x);
     return;
@@ -794,7 +816,10 @@ cv.addEventListener('pointermove', e => {
 });
 const endPaint = () => {
   if (painting) { painting = null; save(); }
-  if (scrub) { const resume = scrub.resume; scrub = null; save(); drawSong(); if (resume) start(); }
+  if (scrub) {
+    if (scrubRaf) { cancelAnimationFrame(scrubRaf); applyScrub(); }
+    const resume = scrub.resume; scrub = null; save(); drawSong(); if (resume) start();
+  }
 };
 cv.addEventListener('pointerup', endPaint);
 cv.addEventListener('pointercancel', endPaint);
