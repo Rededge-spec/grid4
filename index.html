@@ -28,12 +28,29 @@ button:hover,select:hover{border-color:#4a505c}
 .len input{width:52px;padding:4px 6px;text-align:right}
 #pos{font-variant-numeric:tabular-nums;color:var(--text);min-width:90px}
 
+/* picture */
+.pic{display:flex;gap:14px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;flex-wrap:wrap;align-items:flex-start}
+.screen{position:relative;width:426px;height:240px;background:#000;border-radius:6px;overflow:hidden;flex:none}
+.screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#picEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13px}
+.pic-side{flex:1;min-width:280px;display:flex;flex-direction:column;gap:8px}
+.pic-side .row{display:flex;gap:8px;flex-wrap:wrap}
+#picSound.on{border-color:#4fc36b}
+#picList{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+#picList li{display:flex;gap:6px;align-items:center}
+#picList .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#picList .dur{color:var(--dim);font-variant-numeric:tabular-nums}
+#picList button{padding:2px 8px;font-size:12px}
+.hint{color:var(--dim);font-size:13px;margin:0}
+#exportBtn:disabled{opacity:.6;cursor:wait}
+
 /* song timeline */
 .song{display:flex;gap:10px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
 .heads{width:190px;flex:none}
 .head-sp{height:22px;color:var(--dim);font-size:12px;display:flex;align-items:center}
 .lanehead{height:42px;margin-bottom:6px;display:flex;align-items:center;gap:6px;border-left:4px solid var(--tc);padding-left:8px}
 .lanehead:last-child{margin-bottom:0}
+.lanehead.pichead{height:30px;color:var(--dim)}
 .lanehead .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg{display:flex}
 .seg button{padding:3px 8px;font-size:12px;border-radius:0}
@@ -89,10 +106,25 @@ input[type=file]{display:none}
   <span id="pos"></span>
   <label class="hgroup">Tempo <input id="tempo" type="range" min="60" max="200" step="1"> <b id="bpm"></b> BPM</label>
   <span class="hgroup len">Length <input id="lenM" type="number" min="0" max="10"> : <input id="lenS" type="number" min="0" max="59" step="5"> <span id="lenInfo"></span></span>
+  <button id="exportBtn" title="Render the whole song, from 0:00 to the end, as a WAV file">Export WAV</button>
 </header>
 
+<section class="pic">
+  <div class="screen" id="screen" hidden><div id="vids"></div><div id="picEmpty">End of picture</div></div>
+  <div class="pic-side">
+    <div class="row">
+      <button id="addPics">Add video clips</button>
+      <button id="picSound">Video sound: off</button>
+      <button id="fitPic" hidden>Fit song length to picture</button>
+      <input id="picFile" type="file" accept="video/*" multiple>
+    </div>
+    <ol id="picList"></ol>
+    <p class="hint" id="picHint">Add video clips to time sounds against picture. They play one after another from 0:00, in time with the song. They aren't saved: add them again after reopening.</p>
+  </div>
+</section>
+
 <section class="song">
-  <div class="heads" id="heads"><div class="head-sp">Click the numbers to set the start</div></div>
+  <div class="heads" id="heads"><div class="head-sp">Click the numbers to set the start</div><div class="lanehead pichead" style="--tc:#8a909c">Picture</div></div>
   <div class="scroller" id="scroller"><canvas id="songcv"></canvas><div id="playhead" hidden></div></div>
 </section>
 
@@ -295,12 +327,14 @@ function preview(i, note) {
 // ---------- clock: plays from the start marker to the end of the song, then stops ----------
 let running = false, timer = null, nextTime = 0, step = 0, songBar = 0, finished = false, endTime = 0, drawQ = [];
 let dispPlaying = tracks.map(() => -1);
+let pos0 = 0, t0 = 0;   // song time (seconds) at the moment playback began, and the audio clock at that moment
 
 function start() {
   ensureAudio();
   if (startBar >= nBars()) startBar = 0;
   songBar = startBar; step = 0; finished = false; drawQ = [];
   nextTime = ctx.currentTime + 0.06;
+  pos0 = startBar * barSec(); t0 = nextTime;
   running = true;
   timer = setInterval(scheduler, 25);
   scheduler(); render();
@@ -337,9 +371,154 @@ function draw() {
       if (e.playing.some((p, i) => p !== dispPlaying[i])) { dispPlaying = e.playing; changed = true; }
     }
     if (finished && !drawQ.length && ctx.currentTime >= endTime) stop();
-    else if (changed) renderClips();
+    else {
+      if (changed) renderClips();
+      if (pics.length) syncPicture(Math.max(0, pos0 + ctx.currentTime - t0), true);
+    }
   }
   requestAnimationFrame(draw);
+}
+
+// ---------- picture: video clips played end to end, kept in step with the song ----------
+const pics = [];   // { name, url, dur, video }
+let activePic = -1, picSound = false;
+const picTotal = () => pics.reduce((a, p) => a + p.dur, 0);
+function picAt(sec) {
+  let acc = 0;
+  for (let k = 0; k < pics.length; k++) {
+    if (sec < acc + pics[k].dur) return { k, off: sec - acc };
+    acc += pics[k].dur;
+  }
+  return null;
+}
+function syncPicture(sec, playing) {
+  const h = picAt(sec), k = h ? h.k : -1;
+  if (k !== activePic) {
+    if (activePic >= 0 && pics[activePic]) { pics[activePic].video.pause(); pics[activePic].video.hidden = true; }
+    activePic = k;
+    if (k >= 0) {
+      const v = pics[k].video;
+      v.hidden = false; v.currentTime = h.off;
+      if (playing) v.play().catch(() => {});
+    }
+    $('picEmpty').hidden = k >= 0;
+    return;
+  }
+  if (k < 0) return;
+  const v = pics[k].video;
+  if (playing) {
+    if (v.paused) v.play().catch(() => {});
+    if (Math.abs(v.currentTime - h.off) > 0.2) v.currentTime = h.off;
+  } else {
+    if (!v.paused) v.pause();
+    if (Math.abs(v.currentTime - h.off) > 0.04) v.currentTime = h.off;
+  }
+}
+function picStill() { if (pics.length && !running) syncPicture(startBar * barSec(), false); }
+async function addPictures(files) {
+  const list = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  for (const f of list) {
+    const url = URL.createObjectURL(f);
+    const video = document.createElement('video');
+    video.preload = 'auto'; video.playsInline = true; video.muted = !picSound; video.hidden = true;
+    video.src = url;
+    const dur = await new Promise(res => {
+      video.onloadedmetadata = () => res(video.duration);
+      video.onerror = () => res(-1);
+    });
+    if (!(dur > 0) || !isFinite(dur)) {
+      URL.revokeObjectURL(url);
+      alert(`"${f.name}" can't be played here. Edge may not support this video format.`);
+      continue;
+    }
+    $('vids').append(video);
+    pics.push({ name: f.name.replace(/\.[^.]+$/, ''), url, dur, video });
+  }
+  activePic = -1;
+  renderPics(); render();
+}
+function movePic(k, d) {
+  const j = k + d; if (j < 0 || j >= pics.length) return;
+  [pics[k], pics[j]] = [pics[j], pics[k]];
+  activePic = -1; pics.forEach(p => { p.video.pause(); p.video.hidden = true; });
+  renderPics(); render();
+}
+function removePic(k) {
+  const p = pics.splice(k, 1)[0];
+  p.video.pause(); p.video.remove(); URL.revokeObjectURL(p.url);
+  activePic = -1; pics.forEach(q => { q.video.pause(); q.video.hidden = true; });
+  renderPics(); render();
+}
+function renderPics() {
+  const ul = $('picList'); ul.innerHTML = '';
+  pics.forEach((p, k) => {
+    const li = document.createElement('li');
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = `${k + 1}. ${p.name}`;
+    const du = document.createElement('span'); du.className = 'dur'; du.textContent = fmt(p.dur);
+    const up = document.createElement('button'); up.textContent = '↑'; up.title = 'Move earlier'; up.onclick = () => movePic(k, -1);
+    const dn = document.createElement('button'); dn.textContent = '↓'; dn.title = 'Move later'; dn.onclick = () => movePic(k, 1);
+    const rm = document.createElement('button'); rm.textContent = 'Remove'; rm.onclick = () => removePic(k);
+    li.append(nm, du, up, dn, rm); ul.append(li);
+  });
+  $('screen').hidden = !pics.length;
+  $('fitPic').hidden = !pics.length;
+  $('picHint').textContent = pics.length
+    ? `Picture runs ${fmt(picTotal())}. White lines in the timeline mark the cuts between clips.`
+    : 'Add video clips to time sounds against picture. They play one after another from 0:00, in time with the song. They aren\'t saved: add them again after reopening.';
+}
+
+// ---------- export: render the whole song from 0:00 to a WAV file ----------
+async function exportWav() {
+  if (running) stop();
+  const btn = $('exportBtn');
+  btn.disabled = true; btn.textContent = 'Rendering…';
+  try {
+    const nb = nBars(), len = 60 / tempo / 4, sr = 44100;
+    const off = new OfflineAudioContext(2, Math.ceil((nb * barSec() + 1.5) * sr), sr);
+    // Point the sound functions at the offline context while scheduling, then put them back
+    const saved = { ctx, master, noiseBuf };
+    ctx = off; noiseBuf = null;
+    const comp = off.createDynamicsCompressor();
+    master = off.createGain(); master.gain.value = 0.7;
+    master.connect(comp); comp.connect(off.destination);
+    try {
+      for (let b = 0; b < nb; b++) for (let s = 0; s < STEPS; s++) {
+        const time = (b * STEPS + s) * len + 0.001;
+        tracks.forEach((t, i) => {
+          const c = clipAt(t, b);
+          if (c < 0) return;
+          const n = t.clips[c][s];
+          if (n !== null) { try { trigger(i, time, n, len); } catch (e) {} }
+        });
+      }
+    } finally { ctx = saved.ctx; master = saved.master; noiseBuf = saved.noiseBuf; }
+    const buf = await off.startRendering();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(encodeWav(buf));
+    a.download = `grid4-${tempo}bpm-${fmt(nb * barSec()).replace(':', 'm')}s.wav`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch (e) {
+    alert('Export failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Export WAV';
+  }
+}
+function encodeWav(buf) {
+  const ch = buf.numberOfChannels, n = buf.length, sr = buf.sampleRate;
+  const data = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const str = (o, s) => [...s].forEach((c, i) => data.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); data.setUint32(4, 36 + n * ch * 2, true); str(8, 'WAVE');
+  str(12, 'fmt '); data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, ch, true);
+  data.setUint32(24, sr, true); data.setUint32(28, sr * ch * 2, true); data.setUint16(32, ch * 2, true); data.setUint16(34, 16, true);
+  str(36, 'data'); data.setUint32(40, n * ch * 2, true);
+  const chans = [...Array(ch)].map((_, c) => buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) {
+    const v = Math.max(-1, Math.min(1, chans[c][i]));
+    data.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2;
+  }
+  return new Blob([data], { type: 'audio/wav' });
 }
 
 // ---------- UI ----------
@@ -493,12 +672,15 @@ function rollClick(i, n, s) {
 
 // ----- song timeline (one canvas: ruler on top, one lane per track) -----
 const cv = $('songcv'), cx = cv.getContext('2d'), scroller = $('scroller'), playhead = $('playhead');
-const BW = 26, RH = 22, LH = 42, GAP = 6;
-const laneY = i => RH + i * (LH + GAP);
-const songH = RH + tracks.length * LH + (tracks.length - 1) * GAP;
+const BW = 26, RH = 22, PH = 30, LH = 42, GAP = 6;
+const TOP = RH + PH + GAP;                               // lanes start below the ruler and picture row
+const laneY = i => TOP + i * (LH + GAP);
+const songH = TOP + tracks.length * LH + (tracks.length - 1) * GAP;
 
 function drawSong() {
-  const nb = nBars(), dpr = window.devicePixelRatio || 1, W = nb * BW + 1, H = songH;
+  const nb = nBars(), dpr = window.devicePixelRatio || 1, H = songH;
+  const pxPerSec = BW / barSec();
+  const W = Math.ceil(Math.max(nb * BW, picTotal() * pxPerSec)) + 1;
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
@@ -545,19 +727,39 @@ function drawSong() {
     }
     cx.fillStyle = '#e6e8ec'; cx.fillRect(nb * BW, y, 1, LH);   // end of song
   });
+
+  // picture row: one block per video clip, with cut lines running down through the lanes
+  cx.fillStyle = '#1b1e24'; cx.fillRect(0, RH, W, PH);
+  let acc = 0;
+  pics.forEach((p, k) => {
+    const x = acc * pxPerSec, w = p.dur * pxPerSec;
+    cx.fillStyle = k % 2 ? '#4a505c' : '#3a3f4a';
+    cx.fillRect(x + 1, RH + 1, Math.max(1, w - 2), PH - 2);
+    cx.save(); cx.beginPath(); cx.rect(x + 1, RH, Math.max(1, w - 6), PH); cx.clip();
+    cx.fillStyle = '#e6e8ec'; cx.fillText(`${k + 1}. ${p.name}`, x + 5, RH + PH / 2);
+    cx.restore();
+    acc += p.dur;
+    if (k < pics.length - 1 || acc * pxPerSec < nb * BW) {
+      cx.fillStyle = 'rgba(255,255,255,0.55)';
+      cx.fillRect(acc * pxPerSec, RH, 1, H - RH);
+    }
+  });
+  if (pics.length && acc * pxPerSec > nb * BW) {             // picture runs past the end of the song
+    cx.fillStyle = 'rgba(22,24,29,0.6)'; cx.fillRect(nb * BW + 1, RH, W, PH);
+  }
 }
 let painting = null;
 function hit(e) {
   const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   const b = Math.floor(x / BW);
-  if (y < RH) return { b, lane: -1 };
-  const k = Math.floor((y - RH) / (LH + GAP)), inLane = (y - RH) - k * (LH + GAP) < LH;
+  if (y < RH + PH) return { b, lane: -1 };              // ruler or picture row: set the start
+  const k = Math.floor((y - TOP) / (LH + GAP)), inLane = y >= TOP && (y - TOP) - k * (LH + GAP) < LH;
   return { b, lane: k < tracks.length && inLane ? k : -2 };
 }
 cv.addEventListener('pointerdown', e => {
   const { b, lane } = hit(e);
   if (b < 0 || b >= nBars() || lane === -2) return;
-  if (lane === -1) { startBar = b; save(); drawSong(); return; }
+  if (lane === -1) { startBar = b; save(); drawSong(); showHead(-1, -1); picStill(); return; }
   const t = tracks[lane];
   if (t.mode !== 'arrange') return;
   const v = t.bars[b] === t.sel ? -1 : t.sel;
@@ -627,7 +829,7 @@ function render() {
   renderClips();
   const nb = nBars();
   $('lenInfo').textContent = `= ${nb} bars (${fmt(nb * barSec())})`;
-  if (!running) showHead(-1, -1);
+  if (!running) { showHead(-1, -1); picStill(); }
   drawSong();
   playBtn.classList.toggle('on', running);
   playBtn.textContent = running ? 'Stop' : 'Play';
@@ -637,16 +839,33 @@ function setLength() {
   const m = Math.min(10, Math.max(0, parseInt($('lenM').value, 10) || 0));
   const s = Math.min(59, Math.max(0, parseInt($('lenS').value, 10) || 0));
   lengthSec = Math.max(10, m * 60 + s);
-  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(lengthSec % 60).padStart(2, '0');
+  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
   if (startBar >= nBars()) startBar = 0;
   save(); render();
 }
 $('lenM').value = Math.floor(lengthSec / 60);
-$('lenS').value = String(lengthSec % 60).padStart(2, '0');
+$('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
 $('lenM').onchange = setLength;
 $('lenS').onchange = setLength;
 
 playBtn.onclick = () => running ? stop() : start();
+$('exportBtn').onclick = exportWav;
+$('addPics').onclick = () => $('picFile').click();
+$('picFile').onchange = () => { const f = $('picFile').files; if (f.length) addPictures(f); $('picFile').value = ''; };
+$('picSound').onclick = () => {
+  picSound = !picSound;
+  pics.forEach(p => p.video.muted = !picSound);
+  $('picSound').textContent = 'Video sound: ' + (picSound ? 'on' : 'off');
+  $('picSound').classList.toggle('on', picSound);
+};
+$('fitPic').onclick = () => {
+  if (!pics.length) return;
+  const bars = Math.min(MAXBARS, Math.max(4, Math.ceil(picTotal() / barSec() / 4) * 4));
+  lengthSec = bars * barSec();
+  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
+  if (startBar >= nBars()) startBar = 0;
+  save(); render();
+};
 tempoIn.value = tempo; bpm.textContent = tempo;
 tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; if (startBar >= nBars()) startBar = 0; save(); render(); };
 

@@ -1,6 +1,6 @@
-// Offline cache. Serves the saved copy instantly, then refreshes it in the
-// background, so an update you upload shows up on the next launch.
-const CACHE = 'grid4-v3';
+// Online: always fetch the newest files from GitHub (and keep a copy).
+// Offline: fall back to the saved copy.
+const CACHE = 'grid4-v4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -15,13 +15,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(caches.open(CACHE).then(async c => {
-    const hit = await c.match(e.request);
-    const net = fetch(e.request).then(r => {
-      if (r.ok) c.put(e.request, r.clone());
-      return r;
-    }).catch(() => hit);
-    return hit || net;
-  }));
+  const req = e.request;
+  if (req.method !== 'GET' || !req.url.startsWith(self.location.origin)) return;
+  e.respondWith(
+    fetch(req.url, { cache: 'no-cache' })
+      .then(r => {
+        if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        return r;
+      })
+      .catch(() => caches.match(req, { ignoreSearch: true }))
+  );
 });
