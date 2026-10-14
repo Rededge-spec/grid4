@@ -26,41 +26,46 @@ button:hover,select:hover{border-color:#4a505c}
 .hgroup b{color:var(--text);font-weight:600}
 #tempo{width:150px;padding:0}
 .len input{width:52px;padding:4px 6px;text-align:right}
-#pos{font-variant-numeric:tabular-nums;color:var(--text);min-width:90px}
+#pos{font-variant-numeric:tabular-nums;color:var(--text);min-width:110px}
+#exportBtn:disabled{opacity:.6;cursor:wait}
 
-/* picture */
+/* picture + sound effects panel */
 .pic{display:flex;gap:14px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;flex-wrap:wrap;align-items:flex-start}
 .screen{position:relative;width:426px;height:240px;background:#000;border-radius:6px;overflow:hidden;flex:none}
 .screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 #picEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13px}
 .pic-side{flex:1;min-width:280px;display:flex;flex-direction:column;gap:8px}
-.pic-side .row{display:flex;gap:8px;flex-wrap:wrap}
+.pic-side .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pic-side h3{font-size:13px;font-weight:600;margin:6px 0 0;color:var(--text)}
 #picSound.on{border-color:#4fc36b}
-#picList{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
-#picList li{display:flex;gap:6px;align-items:center}
-#picList .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#picList .dur{color:var(--dim);font-variant-numeric:tabular-nums}
-#picList button{padding:2px 8px;font-size:12px}
+.list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.list li{display:flex;gap:6px;align-items:center;padding:1px 4px;border-radius:4px}
+.list li.sel{background:#2b3140}
+.list .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.list .dur{color:var(--dim);font-variant-numeric:tabular-nums}
+.list button{padding:2px 8px;font-size:12px}
 .hint{color:var(--dim);font-size:13px;margin:0}
-#exportBtn:disabled{opacity:.6;cursor:wait}
 
 /* song timeline */
 .song{display:flex;gap:10px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
 .heads{width:190px;flex:none}
-.head-sp{height:22px;color:var(--dim);font-size:12px;display:flex;align-items:center}
+.head-sp{height:22px;color:var(--dim);font-size:12px;display:flex;align-items:center;gap:4px}
+.head-sp button{padding:0 8px;font-size:12px;line-height:18px}
 .lanehead{height:42px;margin-bottom:6px;display:flex;align-items:center;gap:6px;border-left:4px solid var(--tc);padding-left:8px}
 .lanehead:last-child{margin-bottom:0}
-.lanehead.pichead{height:30px;color:var(--dim)}
+.lanehead.pichead{height:30px;margin-bottom:0;color:var(--dim)}
+.lanehead.sfxhead{height:30px;color:var(--dim)}
 .lanehead .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg{display:flex}
 .seg button{padding:3px 8px;font-size:12px;border-radius:0}
+.seg button+button{margin-left:-1px}
 .seg button:first-child{border-radius:5px 0 0 5px}
-.seg button:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
-.seg button.on{background:var(--tc);border-color:var(--tc);color:#15161a;font-weight:600}
+.seg button:last-child{border-radius:0 5px 5px 0}
+.seg button.on{background:var(--tc);border-color:var(--tc);color:#15161a;font-weight:600;position:relative}
 .scroller{position:relative;overflow-x:auto;flex:1;min-width:0}
-#songcv{display:block;touch-action:none;cursor:pointer}
-#playhead{box-shadow:0 0 0 1px rgba(0,0,0,.4)}
-#playhead{position:absolute;top:0;left:0;width:2px;background:#fff;pointer-events:none}
+#spacer{position:relative}
+#songcv{position:sticky;left:0;display:block;touch-action:none;cursor:pointer}
+#playhead{position:absolute;top:0;left:0;width:2px;background:#fff;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 
 /* track editors */
 main{padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -97,6 +102,7 @@ main{padding:16px;display:flex;flex-direction:column;gap:10px}
 .rk.below{box-shadow:inset 0 -3px 0 var(--tc)}
 
 footer{padding:0 16px 16px;color:var(--dim);font-size:13px;max-width:1100px}
+footer p{margin:0 0 6px}
 input[type=file]{display:none}
 </style>
 </head>
@@ -119,22 +125,39 @@ input[type=file]{display:none}
       <button id="fitPic" hidden>Fit song length to picture</button>
       <input id="picFile" type="file" accept="video/*" multiple>
     </div>
-    <ol id="picList"></ol>
-    <p class="hint" id="picHint">Add video clips to time sounds against picture. They play one after another from 0:00, in time with the song. They aren't saved: add them again after reopening.</p>
+    <div class="row" id="fitRow" hidden>
+      <span class="hint">Land cuts on:</span>
+      <div class="seg" style="--tc:#4fc36b">
+        <button data-fit="off">Off</button><button data-fit="bars">Bar lines</button><button data-fit="beats">Beats</button>
+      </div>
+    </div>
+    <ol class="list" id="picList"></ol>
+    <p class="hint" id="picHint"></p>
+    <h3>Sound effects</h3>
+    <div class="row">
+      <button id="addSfx">Add sound effects</button>
+      <input id="sfxFile" type="file" accept="audio/*" multiple>
+    </div>
+    <ol class="list" id="sfxList"></ol>
+    <p class="hint" id="sfxHint"></p>
   </div>
 </section>
 
 <section class="song">
-  <div class="heads" id="heads"><div class="head-sp">Drag here to move the playhead</div><div class="lanehead pichead" style="--tc:#8a909c">Picture</div></div>
-  <div class="scroller" id="scroller"><canvas id="songcv"></canvas><div id="playhead" hidden></div></div>
+  <div class="heads" id="heads">
+    <div class="head-sp">Zoom <button id="zoomOut">−</button><button id="zoomIn">+</button></div>
+    <div class="lanehead pichead" style="--tc:#8a909c">Picture</div>
+    <div class="lanehead sfxhead" style="--tc:#c9cfd8">Sound effects</div>
+  </div>
+  <div class="scroller" id="scroller"><div id="spacer"><canvas id="songcv"></canvas><div id="playhead"></div></div></div>
 </section>
 
 <main id="tracks"></main>
 <footer>
-  Each track is either <b>Loop</b> (repeats its selected clip for the whole song) or <b>Arrange</b>
-  (plays only where you put it: choose a clip number below, then click or drag across bars in its lane; click a bar again to empty it).
-  Drag along the bar numbers or the picture row to move the playhead; the video follows. Play runs from the playhead to the end of the song and stops. Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches.
-  Drop an audio file on a track to replace its sound. Space = play/stop.
+  <p>Drag along the top rows (bar numbers, picture, sound effects) to move the playhead; the video follows. Play runs from the playhead to the end of the song and stops.</p>
+  <p>Each track is either <b>Loop</b> (repeats its selected clip for the whole song) or <b>Arrange</b> (plays only where you put it: choose a clip number below, then click or drag across bars in its lane; click a bar again to empty it).</p>
+  <p>Sound effects are placed by time, not by bar. Drag one to move it (hold Shift to snap to the grid), or select it and use ← → to nudge it by one frame (1/30 s); hold Shift for 10 frames.</p>
+  <p>Bass, Lead, Pluck and loaded samples have a Notes button for choosing pitches. Drop an audio file on a track to replace its sound. Space = play/stop.</p>
 </footer>
 
 <script>
@@ -166,9 +189,11 @@ function makeTrack(sound, i) {
 const tracks = ['kick', 'snare', 'hat', 'bass'].map(makeTrack);
 const isPitched = t => (t.useSample && t.buffer) || SYNTHS.includes(t.sound);
 const trackName = t => (t.useSample && t.buffer) ? t.sampleName : LABEL[t.sound];
-const barSec = () => 240 / tempo;                       // 4 beats per bar
-const stepSec = () => barSec() / STEPS;
-const nBars = () => Math.min(MAXBARS, Math.max(4, Math.round(lengthSec / barSec() / 4) * 4));
+const ZOOMS = [13, 26, 52, 104, 208, 416];             // pixels per bar in the timeline
+let fitMode = 'off', BW = 26;                           // fitMode: land picture cuts on 'off' | 'bars' | 'beats'
+const pics = [];                                        // video clips: { name, url, dur, video }
+const sfx = [];                                         // sound effects: { id, name, buffer, dur, t, peaks }
+const picTotal = () => pics.reduce((a, p) => a + p.dur, 0);
 const clipAt = (t, b) => t.mode === 'loop' ? t.sel : t.bars[b];
 
 function readTrack(t, s) {
@@ -186,6 +211,8 @@ function load() {
     if (d) {
       tempo = d.tempo || tempo;
       lengthSec = d.lengthSec || lengthSec;
+      if (['off', 'bars', 'beats'].includes(d.fitMode)) fitMode = d.fitMode;
+      if (ZOOMS.includes(d.zoom)) BW = d.zoom;
       startStep = Number.isInteger(d.startStep) ? Math.max(0, d.startStep) : Math.max(0, d.startBar | 0) * STEPS;
       (d.tracks || []).forEach((s, i) => {
         const t = tracks[i]; if (!t || !s) return;
@@ -215,7 +242,7 @@ function load() {
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      tempo, lengthSec, startStep,
+      tempo, lengthSec, startStep, fitMode, zoom: BW,
       tracks: tracks.map(t => ({ sound: t.sound, mode: t.mode, sel: t.sel, oct: t.oct, lastNote: t.lastNote, clips: t.clips, bars: t.bars }))
     }));
   } catch (e) {}
@@ -231,6 +258,60 @@ if (!load()) {
   for (let b = 4; b < 28; b++) tracks[3].bars[b] = Math.floor((b - 4) / 2) % 2;
 }
 
+
+// ---------- time map ----------
+// The song is laid out in bars and 16th-note steps. stepTimes[k] is the time (seconds) where step k starts.
+// Normally every step has the same length (the Tempo setting). When "Land cuts on" is used, each stretch
+// of picture between cuts gets its own precise tempo, close to the Tempo setting, so that the cut falls
+// exactly on a bar line (or beat).
+const TOTAL = MAXBARS * STEPS;
+const stepTimes = new Float64Array(TOTAL + 1);
+let tmap = [], songBars = 8;
+function rebuildTime() {
+  tmap = [];
+  if (fitMode !== 'off' && pics.length) {
+    const unit = fitMode === 'bars' ? STEPS : 4, unitSec = unit * 15 / tempo;
+    let step = 0, prev = 0, acc = 0;
+    for (const p of pics) {
+      acc += p.dur;
+      const dur = acc - prev, n = Math.max(1, Math.round(dur / unitSec));
+      if (step + n * unit > TOTAL) break;
+      tmap.push({ step, bpm: n * unit * 15 / dur });
+      step += n * unit; prev = acc;
+    }
+    tmap.push({ step, bpm: tempo });
+  }
+  let t = 0, mi = 0, bpm = tempo;
+  for (let k = 0; k < TOTAL; k++) {
+    while (mi < tmap.length && tmap[mi].step <= k) { bpm = tmap[mi].bpm; mi++; }
+    stepTimes[k] = t; t += 15 / bpm;
+  }
+  stepTimes[TOTAL] = t;
+  // Song length: the whole number of 4-bar phrases that ends closest to the length you chose
+  let best = 4, bestD = Infinity;
+  for (let bars = 4; bars <= MAXBARS; bars += 4) {
+    const d = Math.abs(stepTimes[bars * STEPS] - lengthSec);
+    if (d < bestD) { bestD = d; best = bars; } else break;
+  }
+  songBars = best;
+  if (startStep >= songBars * STEPS) startStep = 0;
+}
+const nBars = () => songBars;
+const timeAt = k => stepTimes[Math.max(0, Math.min(TOTAL, k))];
+const songEnd = () => stepTimes[songBars * STEPS];
+function stepAtTime(t) {                                // fractional step position of a time
+  if (t <= 0) return 0;
+  if (t >= stepTimes[TOTAL]) return TOTAL;
+  let lo = 0, hi = TOTAL;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (stepTimes[m] <= t) lo = m; else hi = m; }
+  return lo + (t - stepTimes[lo]) / (stepTimes[lo + 1] - stepTimes[lo]);
+}
+const timeToX = t => stepAtTime(t) / STEPS * BW;
+function xToTime(x) {
+  const s = Math.max(0, x / BW * STEPS), k = Math.floor(s);
+  return k >= TOTAL ? stepTimes[TOTAL] : stepTimes[k] + (s - k) * (stepTimes[k + 1] - stepTimes[k]);
+}
+const fmtFine = sec => { sec = Math.max(0, sec); const m = Math.floor(sec / 60), s = sec - m * 60; return m + ':' + s.toFixed(2).padStart(5, '0'); };
 // ---------- audio ----------
 let ctx = null, master = null, noiseBuf = null;
 function ensureAudio() {
@@ -240,7 +321,7 @@ function ensureAudio() {
     master = ctx.createGain(); master.gain.value = 0.8;
     master.connect(comp); comp.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 function noise() {
   if (!noiseBuf) {
@@ -326,30 +407,43 @@ function preview(i, note) {
   try { trigger(i, ctx.currentTime, note, 60 / tempo / 4); } catch (e) {}
 }
 
-// ---------- clock: plays from the start marker to the end of the song, then stops ----------
+
+// ---------- sound effects playback ----------
+const liveSfx = new Set();
+function playSfx(s, when, offset, track = true) {
+  const src = ctx.createBufferSource(); src.buffer = s.buffer;
+  src.connect(master); src.start(when, offset);
+  if (track) { liveSfx.add(src); src.onended = () => liveSfx.delete(src); }
+}
+
+// ---------- clock: plays from the playhead to the end of the song, then stops ----------
 let running = false, timer = null, nextTime = 0, step = 0, songBar = 0, finished = false, endTime = 0, drawQ = [];
 let dispPlaying = tracks.map(() => -1);
-let pos0 = 0, t0 = 0;   // song time (seconds) at the moment playback began, and the audio clock at that moment
+let lastQ = { time: 0, songT: 0 };   // most recent step shown: audio clock time and song time
 
 function start() {
   ensureAudio();
-  if (startStep >= nBars() * STEPS) startStep = 0;
+  if (startStep >= songBars * STEPS) startStep = 0;
   songBar = Math.floor(startStep / STEPS); step = startStep % STEPS; finished = false; drawQ = [];
   nextTime = ctx.currentTime + 0.06;
-  pos0 = startStep * stepSec(); t0 = nextTime;
+  const pos0 = timeAt(startStep);
+  lastQ = { time: nextTime, songT: pos0 };
+  // sound effects that began before the playhead and are still sounding
+  for (const s of sfx) if (s.t < pos0 && s.t + s.dur > pos0) playSfx(s, nextTime, pos0 - s.t);
   running = true;
   timer = setInterval(scheduler, 25);
   scheduler(); render();
 }
 function stop() {
   clearInterval(timer); running = false; finished = false; drawQ = [];
+  liveSfx.forEach(src => { try { src.stop(); } catch (e) {} }); liveSfx.clear();
   dispPlaying = tracks.map(() => -1);
   showHead(-1, -1); render();
 }
 function scheduler() {
-  const len = 60 / tempo / 4;
   while (!finished && nextTime < ctx.currentTime + 0.1) {
-    if (step === 0 && songBar >= nBars()) { finished = true; endTime = nextTime; break; }
+    if (step === 0 && songBar >= songBars) { finished = true; endTime = nextTime; break; }
+    const g = songBar * STEPS + step, st = stepTimes[g], len = stepTimes[g + 1] - st;
     const playing = tracks.map(t => clipAt(t, songBar));
     tracks.forEach((t, i) => {
       const c = playing[i];
@@ -358,7 +452,8 @@ function scheduler() {
         if (n !== null) { try { trigger(i, nextTime, n, len); } catch (e) {} }
       }
     });
-    drawQ.push({ time: nextTime, step, bar: songBar, playing });
+    for (const s of sfx) if (s.t >= st && s.t < st + len) { try { playSfx(s, nextTime + (s.t - st), 0); } catch (e) {} }
+    drawQ.push({ time: nextTime, step, bar: songBar, playing, songT: st });
     nextTime += len;
     step = (step + 1) % STEPS;
     if (step === 0) songBar++;
@@ -369,22 +464,22 @@ function draw() {
     let changed = false;
     while (drawQ.length && drawQ[0].time <= ctx.currentTime) {
       const e = drawQ.shift();
+      lastQ = e;
       showHead(e.step, e.bar);
       if (e.playing.some((p, i) => p !== dispPlaying[i])) { dispPlaying = e.playing; changed = true; }
     }
     if (finished && !drawQ.length && ctx.currentTime >= endTime) stop();
     else {
       if (changed) renderClips();
-      if (pics.length) syncPicture(Math.max(0, pos0 + ctx.currentTime - t0), true);
+      if (pics.length) syncPicture(Math.max(0, lastQ.songT + ctx.currentTime - lastQ.time), true);
     }
   }
   requestAnimationFrame(draw);
 }
+const nowSongTime = () => running && ctx ? Math.max(0, lastQ.songT + ctx.currentTime - lastQ.time) : timeAt(startStep);
 
 // ---------- picture: video clips played end to end, kept in step with the song ----------
-const pics = [];   // { name, url, dur, video }
 let activePic = -1, picSound = false;
-const picTotal = () => pics.reduce((a, p) => a + p.dur, 0);
 function picAt(sec) {
   let acc = 0;
   for (let k = 0; k < pics.length; k++) {
@@ -398,7 +493,7 @@ function picAt(sec) {
 function seekTo(v, t) {
   v._target = t;
   if (v.seeking) return;
-  if (Math.abs(v.currentTime - t) > 0.04) v.currentTime = t;
+  if (Math.abs(v.currentTime - t) > 0.02) v.currentTime = t;
 }
 function syncPicture(sec, playing) {
   const h = picAt(sec), k = h ? h.k : -1;
@@ -424,7 +519,7 @@ function syncPicture(sec, playing) {
     seekTo(v, h.off);
   }
 }
-function picStill() { if (pics.length && !running) syncPicture(startStep * stepSec(), false); }
+function picStill() { if (pics.length && !running) syncPicture(timeAt(startStep), false); }
 async function addPictures(files) {
   const list = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   for (const f of list) {
@@ -434,7 +529,7 @@ async function addPictures(files) {
     video._target = null;
     video.addEventListener('seeked', () => {
       const t = video._target;
-      if (t !== null && Math.abs(video.currentTime - t) > 0.04) video.currentTime = t;
+      if (t !== null && Math.abs(video.currentTime - t) > 0.02) video.currentTime = t;
     });
     video.src = url;
     const dur = await new Promise(res => {
@@ -449,37 +544,127 @@ async function addPictures(files) {
     $('vids').append(video);
     pics.push({ name: f.name.replace(/\.[^.]+$/, ''), url, dur, video });
   }
-  activePic = -1;
-  renderPics(); render();
+  picsChanged();
+}
+function picsChanged() {
+  activePic = -1; pics.forEach(p => { p.video.pause(); p.video.hidden = true; });
+  rebuildTime(); renderPics(); render();
 }
 function movePic(k, d) {
   const j = k + d; if (j < 0 || j >= pics.length) return;
   [pics[k], pics[j]] = [pics[j], pics[k]];
-  activePic = -1; pics.forEach(p => { p.video.pause(); p.video.hidden = true; });
-  renderPics(); render();
+  picsChanged();
 }
 function removePic(k) {
   const p = pics.splice(k, 1)[0];
   p.video.pause(); p.video.remove(); URL.revokeObjectURL(p.url);
-  activePic = -1; pics.forEach(q => { q.video.pause(); q.video.hidden = true; });
-  renderPics(); render();
+  picsChanged();
 }
 function renderPics() {
   const ul = $('picList'); ul.innerHTML = '';
   pics.forEach((p, k) => {
-    const li = document.createElement('li');
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = `${k + 1}. ${p.name}`;
-    const du = document.createElement('span'); du.className = 'dur'; du.textContent = fmt(p.dur);
-    const up = document.createElement('button'); up.textContent = '↑'; up.title = 'Move earlier'; up.onclick = () => movePic(k, -1);
-    const dn = document.createElement('button'); dn.textContent = '↓'; dn.title = 'Move later'; dn.onclick = () => movePic(k, 1);
-    const rm = document.createElement('button'); rm.textContent = 'Remove'; rm.onclick = () => removePic(k);
+    const li = el('li');
+    const nm = el('span', 'nm'); nm.textContent = `${k + 1}. ${p.name}`;
+    const du = el('span', 'dur'); du.textContent = fmtFine(p.dur);
+    const up = el('button'); up.textContent = '↑'; up.title = 'Move earlier'; up.onclick = () => movePic(k, -1);
+    const dn = el('button'); dn.textContent = '↓'; dn.title = 'Move later'; dn.onclick = () => movePic(k, 1);
+    const rm = el('button'); rm.textContent = 'Remove'; rm.onclick = () => removePic(k);
     li.append(nm, du, up, dn, rm); ul.append(li);
   });
   $('screen').hidden = !pics.length;
   $('fitPic').hidden = !pics.length;
-  $('picHint').textContent = pics.length
-    ? `Picture runs ${fmt(picTotal())}. White lines in the timeline mark the cuts between clips.`
-    : 'Add video clips to time sounds against picture. They play one after another from 0:00, in time with the song. They aren\'t saved: add them again after reopening.';
+  $('fitRow').hidden = !pics.length;
+  document.querySelectorAll('[data-fit]').forEach(b => b.classList.toggle('on', b.dataset.fit === fitMode));
+  let hint;
+  if (!pics.length) hint = 'Add video clips to time sounds against picture. They play one after another from 0:00, in time with the song. They aren\'t saved: add them again after reopening.';
+  else {
+    hint = `Picture runs ${fmtFine(picTotal())}. White lines in the timeline mark the cuts.`;
+    if (tmap.length > 1) hint += ' Tempo for each clip: ' + tmap.slice(0, -1).map(m => m.bpm.toFixed(1)).join(' · ') + ' BPM, then ' + tempo + ' after the picture.';
+  }
+  $('picHint').textContent = hint;
+}
+
+// ---------- sound effects: placed by time, saved in the browser's database ----------
+let selSfx = null;   // id of the selected sound effect
+const dbp = new Promise(res => {
+  try {
+    const r = indexedDB.open('grid4', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('sfx', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => res(null);
+  } catch (e) { res(null); }
+});
+async function dbDo(mode, fn) {
+  const db = await dbp; if (!db) return null;
+  return new Promise(res => {
+    const tx = db.transaction('sfx', mode), out = fn(tx.objectStore('sfx'));
+    tx.oncomplete = () => res(out && out.result); tx.onerror = () => res(null);
+  });
+}
+const dbPutSfx = s => dbDo('readwrite', st => st.put({ id: s.id, name: s.name, blob: s.blob, t: s.t }));
+const dbSetTime = dbPutSfx;   // the sound file is kept in memory, so just store the whole record again
+const dbDelSfx = id => dbDo('readwrite', st => st.delete(id));
+function peaksOf(buf) {                     // loudness outline, 100 values per second, for drawing
+  const d = buf.getChannelData(0), per = Math.max(1, Math.floor(buf.sampleRate / 100));
+  const out = new Float32Array(Math.ceil(d.length / per));
+  for (let i = 0; i < out.length; i++) {
+    let m = 0; const e = Math.min(d.length, (i + 1) * per);
+    for (let j = i * per; j < e; j++) { const v = Math.abs(d[j]); if (v > m) m = v; }
+    out[i] = m;
+  }
+  return out;
+}
+async function decodeSfx(rec) {
+  ensureAudio();
+  const buffer = await ctx.decodeAudioData(await rec.blob.arrayBuffer());
+  return { id: rec.id, name: rec.name, blob: rec.blob, t: rec.t, buffer, dur: buffer.duration, peaks: peaksOf(buffer) };
+}
+async function addSfxFiles(files) {
+  const t = nowSongTime();
+  for (const f of files) {
+    try {
+      const s = await decodeSfx({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), name: f.name.replace(/\.[^.]+$/, ''), blob: f, t });
+      sfx.push(s); selSfx = s.id;
+      dbPutSfx(s);
+    } catch (e) { alert(`"${f.name}" could not be read as audio.`); }
+  }
+  renderSfx(); drawSong();
+}
+async function loadSavedSfx() {
+  const recs = await dbDo('readonly', st => st.getAll());
+  if (!recs) return;
+  for (const r of recs) { try { sfx.push(await decodeSfx(r)); } catch (e) {} }
+  sfx.sort((a, b) => a.t - b.t);
+  renderSfx(); drawSong();
+}
+function removeSfx(id) {
+  const k = sfx.findIndex(s => s.id === id); if (k < 0) return;
+  sfx.splice(k, 1); if (selSfx === id) selSfx = null;
+  dbDelSfx(id); renderSfx(); drawSong();
+}
+function renderSfx() {
+  const ul = $('sfxList'); ul.innerHTML = '';
+  [...sfx].sort((a, b) => a.t - b.t).forEach(s => {
+    const li = el('li'); if (s.id === selSfx) li.className = 'sel';
+    const nm = el('span', 'nm'); nm.textContent = s.name; nm.title = 'Select';
+    nm.onclick = () => { selSfx = s.id; renderSfx(); drawSong(); };
+    const at = el('span', 'dur'); at.textContent = fmtFine(s.t); s._label = at;
+    const go = el('button'); go.textContent = 'Go to'; go.title = 'Move the playhead here';
+    go.onclick = () => { if (running) stop(); startStep = Math.min(songBars * STEPS - 1, Math.floor(stepAtTime(s.t))); selSfx = s.id; save(); render(); renderSfx(); };
+    const pv = el('button'); pv.textContent = '▶'; pv.title = 'Listen';
+    pv.onclick = () => { ensureAudio(); playSfx(s, ctx.currentTime, 0); };
+    const rm = el('button'); rm.textContent = 'Remove'; rm.onclick = () => removeSfx(s.id);
+    li.append(nm, at, go, pv, rm); ul.append(li);
+  });
+  $('sfxHint').textContent = sfx.length
+    ? 'New sounds are placed at the playhead. Drag them in the Sound effects row; select one and use ← → to nudge by a frame.'
+    : 'Add sounds to place by time, independent of bars and tempo. They are placed at the playhead and saved with the song.';
+}
+function nudgeSel(sec) {
+  const s = sfx.find(x => x.id === selSfx); if (!s) return;
+  s.t = Math.max(0, s.t + sec);
+  if (s._label) s._label.textContent = fmtFine(s.t);
+  dbSetTime(s); drawSong();
 }
 
 // ---------- export: render the whole song from 0:00 to a WAV file ----------
@@ -488,8 +673,9 @@ async function exportWav() {
   const btn = $('exportBtn');
   btn.disabled = true; btn.textContent = 'Rendering…';
   try {
-    const nb = nBars(), len = 60 / tempo / 4, sr = 44100;
-    const off = new OfflineAudioContext(2, Math.ceil((nb * barSec() + 1.5) * sr), sr);
+    const nb = songBars, end = songEnd(), sr = 44100;
+    const tail = Math.min(10, Math.max(1.5, ...sfx.filter(s => s.t < end).map(s => s.t + s.dur - end)));
+    const off = new OfflineAudioContext(2, Math.ceil((end + tail) * sr), sr);
     // Point the sound functions at the offline context while scheduling, then put them back
     const saved = { ctx, master, noiseBuf };
     ctx = off; noiseBuf = null;
@@ -498,7 +684,7 @@ async function exportWav() {
     master.connect(comp); comp.connect(off.destination);
     try {
       for (let b = 0; b < nb; b++) for (let s = 0; s < STEPS; s++) {
-        const time = (b * STEPS + s) * len + 0.001;
+        const g = b * STEPS + s, time = stepTimes[g] + 0.001, len = stepTimes[g + 1] - stepTimes[g];
         tracks.forEach((t, i) => {
           const c = clipAt(t, b);
           if (c < 0) return;
@@ -506,11 +692,12 @@ async function exportWav() {
           if (n !== null) { try { trigger(i, time, n, len); } catch (e) {} }
         });
       }
+      for (const s of sfx) if (s.t < end) playSfx(s, s.t + 0.001, 0, false);
     } finally { ctx = saved.ctx; master = saved.master; noiseBuf = saved.noiseBuf; }
     const buf = await off.startRendering();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(encodeWav(buf));
-    a.download = `grid4-${tempo}bpm-${fmt(nb * barSec()).replace(':', 'm')}s.wav`;
+    a.download = `grid4-${fmt(end).replace(':', 'm')}s.wav`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   } catch (e) {
@@ -535,7 +722,6 @@ function encodeWav(buf) {
   }
   return new Blob([data], { type: 'audio/wav' });
 }
-
 // ---------- UI ----------
 const $ = id => document.getElementById(id);
 const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
@@ -685,48 +871,108 @@ function rollClick(i, n, s) {
   save(); render();
 }
 
-// ----- song timeline (one canvas: ruler on top, one lane per track) -----
-const cv = $('songcv'), cx = cv.getContext('2d'), scroller = $('scroller'), playhead = $('playhead');
-const BW = 26, RH = 22, PH = 30, LH = 42, GAP = 6;
-const TOP = RH + PH + GAP;                               // lanes start below the ruler and picture row
+
+// ----- song timeline -----
+// One canvas the width of the visible area, redrawn as you scroll. Rows from the top:
+// ruler, picture, sound effects, then one lane per track.
+const cv = $('songcv'), cx = cv.getContext('2d'), scroller = $('scroller'), spacer = $('spacer'), playhead = $('playhead');
+const RH = 22, PH = 30, SH = 30, LH = 42, GAP = 6;
+const SY = RH + PH;                                     // sound-effects row
+const TOP = SY + SH + GAP;                              // first track lane
 const laneY = i => TOP + i * (LH + GAP);
 const songH = TOP + tracks.length * LH + (tracks.length - 1) * GAP;
 
 function drawSong() {
-  const nb = nBars(), dpr = window.devicePixelRatio || 1, H = songH;
-  const pxPerSec = BW / barSec();
-  const W = Math.ceil(Math.max(nb * BW, picTotal() * pxPerSec)) + 1;
-  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
-    playhead.style.height = H + 'px';
+  const nb = songBars, dpr = window.devicePixelRatio || 1, H = songH;
+  const picEnd = pics.length ? timeToX(picTotal()) : 0;
+  const sfxEnd = sfx.reduce((m, s) => Math.max(m, timeToX(s.t + s.dur)), 0);
+  const W = Math.ceil(Math.max(nb * BW, picEnd, sfxEnd)) + 60;
+  spacer.style.width = W + 'px'; spacer.style.height = H + 'px';
+  playhead.style.height = H + 'px';
+  const vw = Math.max(1, scroller.clientWidth), off = scroller.scrollLeft;
+  if (cv.width !== Math.round(vw * dpr) || cv.height !== Math.round(H * dpr)) {
+    cv.width = Math.round(vw * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = vw + 'px'; cv.style.height = H + 'px';
   }
-  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  cx.clearRect(0, 0, W, H);
+  cx.setTransform(dpr, 0, 0, dpr, -off * dpr, 0);
+  cx.clearRect(off, 0, vw, H);
   cx.font = '11px "Segoe UI", system-ui, sans-serif';
   cx.textBaseline = 'middle';
+  const b0 = Math.max(0, Math.floor(off / BW)), b1 = Math.min(nb, Math.ceil((off + vw) / BW));
+  const right = off + vw;
 
-  // ruler: bar numbers every 4 bars, start marker
-  for (let b = 0; b < nb; b += 4) {
+  // ruler: bar numbers, tempo changes, start marker
+  const every = BW >= 52 ? 1 : BW >= 26 ? 4 : 8;
+  for (let b = b0 - (b0 % every); b < b1; b += every) {
     cx.fillStyle = '#3a3f4a'; cx.fillRect(b * BW, RH - 6, 1, 6);
     cx.fillStyle = '#8a909c'; cx.fillText(b + 1, b * BW + 3, RH / 2 - 1);
+  }
+  if (BW >= 104) {   // beat ticks when zoomed in
+    cx.fillStyle = '#2c3039';
+    for (let b = b0; b < b1; b++) for (let q = 1; q < 4; q++) cx.fillRect(b * BW + q * BW / 4, RH - 3, 1, 3);
+  }
+  for (const m of tmap.slice(0, -1)) {
+    const x = m.step / STEPS * BW;
+    if (x < off - 80 || x > right) continue;
+    // sits to the right of the bar number when both are at the same spot
+    const b = m.step / STEPS, numW = (m.step % STEPS === 0 && b % every === 0) ? cx.measureText(String(b + 1)).width + 6 : 0;
+    cx.fillStyle = '#4fc36b'; cx.fillRect(x, 2, 1, RH - 4);
+    cx.fillText(m.bpm.toFixed(1) + ' bpm', x + 3 + numW, RH / 2 - 1);
   }
   const sx = startStep / STEPS * BW;
   cx.fillStyle = '#d9a441';
   cx.beginPath(); cx.moveTo(sx, RH - 9); cx.lineTo(sx + 9, RH - 9); cx.lineTo(sx, RH); cx.closePath(); cx.fill();
 
+  // picture row
+  cx.fillStyle = '#1b1e24'; cx.fillRect(off, RH, vw, PH);
+  let acc = 0;
+  const cuts = [];
+  pics.forEach((p, k) => {
+    const x = timeToX(acc), x2 = timeToX(acc + p.dur);
+    acc += p.dur; cuts.push(x2);
+    if (x2 < off || x > right) return;
+    cx.fillStyle = k % 2 ? '#4a505c' : '#3a3f4a';
+    cx.fillRect(x + 1, RH + 1, Math.max(1, x2 - x - 2), PH - 2);
+    cx.save(); cx.beginPath(); cx.rect(x + 1, RH, Math.max(1, x2 - x - 6), PH); cx.clip();
+    cx.fillStyle = '#e6e8ec'; cx.fillText(`${k + 1}. ${p.name}`, Math.max(x, off) + 5, RH + PH / 2);
+    cx.restore();
+  });
+
+  // sound-effects row: each sound drawn as its loudness outline
+  cx.fillStyle = '#1b1e24'; cx.fillRect(off, SY, vw, SH);
+  for (const s of sfx) {
+    const x = timeToX(s.t), x2 = Math.max(x + 3, timeToX(s.t + s.dur));
+    if (x2 < off || x > right) continue;
+    const sel = s.id === selSfx;
+    cx.globalAlpha = sel ? 0.35 : 0.18; cx.fillStyle = '#c9cfd8';
+    cx.fillRect(x, SY + 1, x2 - x, SH - 2);
+    cx.globalAlpha = 1; cx.fillStyle = sel ? '#ffffff' : '#c9cfd8';
+    const pa = Math.max(Math.floor(x), Math.floor(off)), pb = Math.min(Math.ceil(x2), Math.ceil(right));
+    for (let px = pa; px < pb; px++) {
+      const i = Math.floor((xToTime(px) - s.t) * 100);
+      if (i < 0 || i >= s.peaks.length) continue;
+      const h = Math.max(1, s.peaks[i] * (SH - 6));
+      cx.fillRect(px, SY + SH / 2 - h / 2, 1, h);
+    }
+    cx.fillRect(x, SY + 1, 1, SH - 2);                     // start line
+    cx.save(); cx.beginPath(); cx.rect(x, SY, Math.max(1, x2 - x), SH); cx.clip();
+    cx.fillStyle = sel ? '#ffffff' : '#e6e8ec'; cx.fillText(s.name, x + 4, SY + 8);
+    cx.restore();
+    if (sel) { cx.strokeStyle = '#ffffff'; cx.strokeRect(x + 0.5, SY + 0.5, x2 - x - 1, SH - 1); }
+  }
+
+  // track lanes
   tracks.forEach((t, i) => {
     const y = laneY(i), pitched = isPitched(t);
-    cx.fillStyle = '#1b1e24'; cx.fillRect(0, y, W, LH);
-    for (let b = 0; b < nb; b++) {
+    cx.fillStyle = '#1b1e24'; cx.fillRect(off, y, vw, LH);
+    for (let b = b0; b < b1; b++) {
       const x = b * BW;
-      if (b % 4 === 0) { cx.fillStyle = '#2c3039'; cx.fillRect(x, y, 1, LH); }
+      if (b % 4 === 0 || BW >= 52) { cx.fillStyle = b % 4 === 0 ? '#2c3039' : '#23262d'; cx.fillRect(x, y, 1, LH); }
       const c = clipAt(t, b);
       if (c < 0) continue;
       cx.globalAlpha = 0.3; cx.fillStyle = t.color;
       cx.fillRect(x + 1, y + 1, BW - 2, LH - 2);
       cx.globalAlpha = 1;
-      // tiny picture of the notes in this bar
       const notes = t.clips[c], vals = notes.filter(v => v !== null);
       if (vals.length) {
         const lo = Math.min(...vals), hi = Math.max(...vals);
@@ -735,51 +981,46 @@ function drawSong() {
           if (v === null) return;
           const nx = x + 2 + s * (BW - 4) / 16;
           const ny = pitched && hi > lo ? y + LH - 7 - (v - lo) / (hi - lo) * (LH - 18) : y + LH / 2 + 4;
-          cx.fillRect(nx, ny - 1.5, 1.5, 3);
+          cx.fillRect(nx, ny - 1.5, Math.max(1.5, BW / 24), 3);
         });
       }
-      if (b === 0 || clipAt(t, b - 1) !== c) { cx.fillStyle = '#e6e8ec'; cx.fillText(c + 1, x + 3, y + 9); }
+      if (b === 0 || b === b0 || clipAt(t, b - 1) !== c) { cx.fillStyle = '#e6e8ec'; cx.fillText(c + 1, x + 3, y + 9); }
     }
     cx.fillStyle = '#e6e8ec'; cx.fillRect(nb * BW, y, 1, LH);   // end of song
   });
 
-  // picture row: one block per video clip, with cut lines running down through the lanes
-  cx.fillStyle = '#1b1e24'; cx.fillRect(0, RH, W, PH);
-  let acc = 0;
-  pics.forEach((p, k) => {
-    const x = acc * pxPerSec, w = p.dur * pxPerSec;
-    cx.fillStyle = k % 2 ? '#4a505c' : '#3a3f4a';
-    cx.fillRect(x + 1, RH + 1, Math.max(1, w - 2), PH - 2);
-    cx.save(); cx.beginPath(); cx.rect(x + 1, RH, Math.max(1, w - 6), PH); cx.clip();
-    cx.fillStyle = '#e6e8ec'; cx.fillText(`${k + 1}. ${p.name}`, x + 5, RH + PH / 2);
-    cx.restore();
-    acc += p.dur;
-    if (k < pics.length - 1 || acc * pxPerSec < nb * BW) {
-      cx.fillStyle = 'rgba(255,255,255,0.55)';
-      cx.fillRect(acc * pxPerSec, RH, 1, H - RH);
-    }
-  });
-  if (pics.length && acc * pxPerSec > nb * BW) {             // picture runs past the end of the song
-    cx.fillStyle = 'rgba(22,24,29,0.6)'; cx.fillRect(nb * BW + 1, RH, W, PH);
-  }
+  // cut lines through everything below the ruler
+  cx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (const x of cuts) if (x >= off && x <= right) cx.fillRect(x, RH, 1, H - RH);
 }
-let painting = null;
+let drawPending = 0;
+const drawSoon = () => { if (!drawPending) drawPending = requestAnimationFrame(() => { drawPending = 0; drawSong(); }); };
+scroller.addEventListener('scroll', drawSoon);
+window.addEventListener('resize', drawSoon);
+
 function hit(e) {
-  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const r = spacer.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   const b = Math.floor(x / BW);
-  if (y < RH + PH) return { b, x, lane: -1 };           // ruler or picture row: move the playhead
+  if (y < SY) return { b, x, lane: -1 };                // ruler or picture row
+  if (y < SY + SH) {                                     // sound-effects row
+    const t = xToTime(x);
+    let found = null;
+    for (const s of sfx) { const sx = timeToX(s.t); if (x >= sx - 3 && x <= Math.max(sx + 3, timeToX(s.t + s.dur))) found = s; }
+    return { b, x, lane: found ? 'sfx' : -1, s: found, t };
+  }
   const k = Math.floor((y - TOP) / (LH + GAP)), inLane = y >= TOP && (y - TOP) - k * (LH + GAP) < LH;
   return { b, x, lane: k < tracks.length && inLane ? k : -2 };
 }
-// Dragging in the ruler or picture row moves the playhead (and the video with it).
-// If the song is playing it pauses while you drag and carries on from where you let go.
-let scrub = null, scrubX = 0, scrubRaf = 0;
+
+// Dragging in the top rows moves the playhead (and the video with it). The pointer can stray anywhere
+// while the button is held; only its left-right position counts. If the song is playing it pauses
+// while you drag and carries on from where you let go.
+let scrub = null, scrubX = 0, scrubRaf = 0, painting = null, sfxDrag = null;
 function applyScrub() {
   scrubRaf = 0;
-  const total = nBars() * STEPS;
-  startStep = Math.min(total - 1, Math.max(0, Math.round(scrubX / BW * STEPS)));
+  startStep = Math.min(songBars * STEPS - 1, Math.max(0, Math.round(scrubX / BW * STEPS)));
   playhead.style.transform = `translateX(${startStep / STEPS * BW}px)`;
-  $('pos').textContent = fmt(startStep * stepSec()) + ' / ' + fmt(nBars() * barSec());
+  $('pos').textContent = fmtFine(timeAt(startStep)) + ' / ' + fmt(songEnd());
   picStill();
 }
 function scrubTo(x) {
@@ -788,59 +1029,81 @@ function scrubTo(x) {
   if (!scrubRaf) scrubRaf = requestAnimationFrame(applyScrub);
 }
 cv.addEventListener('pointerdown', e => {
-  const { b, x, lane } = hit(e);
-  if (lane === -1) {
-    scrub = { resume: running };
-    if (running) stop();
-    playhead.hidden = false;
+  const h = hit(e);
+  if (h.lane === 'sfx') {
+    selSfx = h.s.id;
+    sfxDrag = { s: h.s, grab: h.x - timeToX(h.s.t) };
     cv.setPointerCapture(e.pointerId);
-    scrubTo(x);
+    renderSfx(); drawSong();
     return;
   }
-  if (b < 0 || b >= nBars() || lane === -2) return;
-  const t = tracks[lane];
+  if (h.lane === -1) {
+    scrub = { resume: running };
+    if (running) stop();
+    cv.setPointerCapture(e.pointerId);
+    scrubTo(h.x);
+    return;
+  }
+  if (h.b < 0 || h.b >= songBars || h.lane === -2) return;
+  const t = tracks[h.lane];
   if (t.mode !== 'arrange') return;
-  const v = t.bars[b] === t.sel ? -1 : t.sel;
-  painting = { lane, v };
-  t.bars[b] = v;
+  const v = t.bars[h.b] === t.sel ? -1 : t.sel;
+  painting = { lane: h.lane, v };
+  t.bars[h.b] = v;
   cv.setPointerCapture(e.pointerId);
   drawSong();
 });
 cv.addEventListener('pointermove', e => {
   if (scrub) { scrubTo(hit(e).x); return; }
+  if (sfxDrag) {
+    let t = Math.max(0, xToTime(hit(e).x - sfxDrag.grab));
+    if (e.shiftKey) t = timeAt(Math.round(stepAtTime(t)));   // Shift: snap to the 16th-note grid
+    sfxDrag.s.t = t;
+    if (sfxDrag.s._label) sfxDrag.s._label.textContent = fmtFine(t);
+    drawSoon();
+    return;
+  }
   if (!painting) return;
   const { b } = hit(e);
-  if (b < 0 || b >= nBars()) return;
+  if (b < 0 || b >= songBars) return;
   const t = tracks[painting.lane];
-  if (t.bars[b] !== painting.v) { t.bars[b] = painting.v; drawSong(); }
+  if (t.bars[b] !== painting.v) { t.bars[b] = painting.v; drawSoon(); }
 });
-const endPaint = () => {
+const endPointer = () => {
   if (painting) { painting = null; save(); }
+  if (sfxDrag) { dbSetTime(sfxDrag.s); sfxDrag = null; renderSfx(); }
   if (scrub) {
     if (scrubRaf) { cancelAnimationFrame(scrubRaf); applyScrub(); }
     const resume = scrub.resume; scrub = null; save(); drawSong(); if (resume) start();
   }
 };
-cv.addEventListener('pointerup', endPaint);
-cv.addEventListener('pointercancel', endPaint);
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+
+function setZoom(d) {
+  const i = Math.min(ZOOMS.length - 1, Math.max(0, ZOOMS.indexOf(BW) + d));
+  if (ZOOMS[i] === BW) return;
+  const anchor = (running ? stepAtTime(nowSongTime()) : startStep) / STEPS;   // keep the playhead in view
+  BW = ZOOMS[i];
+  save(); render();
+  scroller.scrollLeft = Math.max(0, anchor * BW - scroller.clientWidth / 2);
+  drawSong();
+}
 
 // ----- drawing -----
 function showHead(s, bar) {
   document.querySelectorAll('.head').forEach(e => e.classList.remove('head'));
   if (s < 0) {   // stopped: the playhead rests at the start position
-    const x = startStep / STEPS * BW;
-    playhead.hidden = false;
-    playhead.style.transform = `translateX(${x}px)`;
-    $('pos').textContent = fmt(startStep * stepSec()) + ' / ' + fmt(nBars() * barSec());
+    playhead.style.transform = `translateX(${startStep / STEPS * BW}px)`;
+    $('pos').textContent = fmtFine(timeAt(startStep)) + ' / ' + fmt(songEnd());
     return;
   }
   refs.forEach(r => r.stepBtns[s].classList.add('head'));
   if (openRoll >= 0) refs[openRoll].rollCells.forEach(row => row[s].classList.add('head'));
   const x = (bar + s / STEPS) * BW;
-  playhead.hidden = false;
   playhead.style.transform = `translateX(${x}px)`;
   if (x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth - 30) scroller.scrollLeft = Math.max(0, x - 40);
-  $('pos').textContent = fmt((bar + s / STEPS) * barSec()) + ' / ' + fmt(nBars() * barSec());
+  $('pos').textContent = fmtFine(timeAt(bar * STEPS + s)) + ' / ' + fmt(songEnd());
 }
 function renderClips() {
   tracks.forEach((t, i) => refs[i].clipBtns.forEach((b, c) => {
@@ -878,31 +1141,35 @@ function render() {
     }
   });
   renderClips();
-  const nb = nBars();
-  $('lenInfo').textContent = `= ${nb} bars (${fmt(nb * barSec())})`;
+  $('lenInfo').textContent = `= ${songBars} bars (${fmt(songEnd())})`;
   if (!running) { showHead(-1, -1); picStill(); }
   drawSong();
   playBtn.classList.toggle('on', running);
   playBtn.textContent = running ? 'Stop' : 'Play';
 }
 
+function showLength() {
+  $('lenM').value = Math.floor(lengthSec / 60);
+  $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
+}
 function setLength() {
   const m = Math.min(10, Math.max(0, parseInt($('lenM').value, 10) || 0));
   const s = Math.min(59, Math.max(0, parseInt($('lenS').value, 10) || 0));
   lengthSec = Math.max(10, m * 60 + s);
-  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
-  if (startStep >= nBars() * STEPS) startStep = 0;
-  save(); render();
+  showLength(); rebuildTime(); save(); render();
 }
-$('lenM').value = Math.floor(lengthSec / 60);
-$('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
+showLength();
 $('lenM').onchange = setLength;
 $('lenS').onchange = setLength;
 
 playBtn.onclick = () => running ? stop() : start();
 $('exportBtn').onclick = exportWav;
+$('zoomIn').onclick = () => setZoom(1);
+$('zoomOut').onclick = () => setZoom(-1);
 $('addPics').onclick = () => $('picFile').click();
 $('picFile').onchange = () => { const f = $('picFile').files; if (f.length) addPictures(f); $('picFile').value = ''; };
+$('addSfx').onclick = () => $('sfxFile').click();
+$('sfxFile').onchange = () => { const f = [...$('sfxFile').files]; if (f.length) addSfxFiles(f); $('sfxFile').value = ''; };
 $('picSound').onclick = () => {
   picSound = !picSound;
   pics.forEach(p => p.video.muted = !picSound);
@@ -911,26 +1178,36 @@ $('picSound').onclick = () => {
 };
 $('fitPic').onclick = () => {
   if (!pics.length) return;
-  const bars = Math.min(MAXBARS, Math.max(4, Math.ceil(picTotal() / barSec() / 4) * 4));
-  lengthSec = bars * barSec();
-  $('lenM').value = Math.floor(lengthSec / 60); $('lenS').value = String(Math.floor(lengthSec % 60)).padStart(2, '0');
-  if (startStep >= nBars() * STEPS) startStep = 0;
-  save(); render();
+  let bars = 4;
+  while (bars < MAXBARS && timeAt(bars * STEPS) < picTotal() - 0.001) bars += 4;
+  lengthSec = timeAt(bars * STEPS);
+  showLength(); rebuildTime(); save(); render();
 };
+document.querySelectorAll('[data-fit]').forEach(b => b.onclick = () => {
+  fitMode = b.dataset.fit; rebuildTime(); save(); renderPics(); render();
+});
 tempoIn.value = tempo; bpm.textContent = tempo;
-tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; if (startStep >= nBars() * STEPS) startStep = 0; save(); render(); };
+tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; rebuildTime(); save(); renderPics(); render(); };
 
 // Keep buttons from taking focus, so Space always means play/stop
 document.addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !e.target.closest('input,select')) { e.preventDefault(); running ? stop() : start(); }
+  if (e.target.closest('input,select')) return;
+  if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
+  else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && selSfx) {
+    e.preventDefault();
+    nudgeSel((e.code === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 10 : 1) / 30);
+  }
 });
 // Stop a stray file drop from navigating away from the page
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => e.preventDefault());
 
 tracks.forEach((_, i) => buildOptions(i));
+rebuildTime();
+renderPics(); renderSfx();
 render();
+loadSavedSfx();
 requestAnimationFrame(draw);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
