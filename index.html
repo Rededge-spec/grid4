@@ -34,6 +34,7 @@ button:hover,select:hover{border-color:#4a505c}
 .pic{display:flex;gap:14px;margin:16px 16px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;flex-wrap:wrap;align-items:flex-start}
 .screen{position:relative;width:426px;height:240px;background:#000;border-radius:6px;overflow:hidden;flex:none}
 .screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#picTag{position:absolute;left:6px;top:6px;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,.7);color:#fff;font-size:12px;font-variant-numeric:tabular-nums}
 #picEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13px}
 .pic-side{flex:1;min-width:280px;display:flex;flex-direction:column;gap:8px}
 .pic-side .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -118,7 +119,7 @@ input[type=file]{display:none}
 </header>
 
 <section class="pic">
-  <div class="screen" id="screen" hidden><div id="vids"></div><div id="picEmpty">End of picture</div></div>
+  <div class="screen" id="screen" hidden><div id="vids"></div><div id="picEmpty">End of picture</div><div id="picTag" hidden></div></div>
   <div class="pic-side">
     <div class="row">
       <button id="addPics">Add video clips</button>
@@ -424,6 +425,7 @@ let lastQ = { time: 0, songT: 0 };   // most recent step shown: audio clock time
 
 function start() {
   ensureAudio();
+  $('picTag').hidden = true;
   if (startStep >= songBars * STEPS) startStep = 0;
   songBar = Math.floor(startStep / STEPS); step = startStep % STEPS; finished = false; drawQ = [];
   nextTime = ctx.currentTime + 0.06;
@@ -520,7 +522,19 @@ function syncPicture(sec, playing) {
     seekTo(v, h.off);
   }
 }
-function picStill() { if (pics.length && !running) syncPicture(timeAt(startStep), false); }
+function picStill() {
+  $('picTag').hidden = true;
+  if (pics.length && !running) syncPicture(timeAt(startStep), false);
+}
+// While a sound effect is selected, dragged or nudged, show the frame where it starts
+// (the playhead stays where it is). Moving the playhead or pressing Play goes back to normal.
+function previewSfx(s) {
+  if (!pics.length || running || !s) return;
+  syncPicture(s.t, false);
+  const tag = $('picTag');
+  tag.textContent = `${s.name} starts here · ${fmtFine(s.t)}`;
+  tag.hidden = false;
+}
 async function addPictures(files) {
   const list = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   for (const f of list) {
@@ -648,7 +662,7 @@ function renderSfx() {
   [...sfx].sort((a, b) => a.t - b.t).forEach(s => {
     const li = el('li'); if (s.id === selSfx) li.className = 'sel';
     const nm = el('span', 'nm'); nm.textContent = s.name; nm.title = 'Select';
-    nm.onclick = () => { selSfx = s.id; renderSfx(); drawSong(); };
+    nm.onclick = () => { selSfx = s.id; renderSfx(); drawSong(); previewSfx(s); };
     const at = el('span', 'dur'); at.textContent = fmtFine(s.t); s._label = at;
     const go = el('button'); go.textContent = 'Go to'; go.title = 'Move the playhead here';
     go.onclick = () => { if (running) stop(); startStep = Math.min(songBars * STEPS - 1, Math.floor(stepAtTime(s.t))); selSfx = s.id; save(); render(); renderSfx(); };
@@ -665,7 +679,7 @@ function nudgeSel(sec) {
   const s = sfx.find(x => x.id === selSfx); if (!s) return;
   s.t = Math.max(0, s.t + sec);
   if (s._label) s._label.textContent = fmtFine(s.t);
-  dbSetTime(s); drawSong();
+  dbSetTime(s); drawSong(); previewSfx(s);
 }
 
 // ---------- export: render the whole song from 0:00 to a WAV file ----------
@@ -1035,7 +1049,7 @@ cv.addEventListener('pointerdown', e => {
     selSfx = h.s.id;
     sfxDrag = { s: h.s, grab: h.x - timeToX(h.s.t) };
     cv.setPointerCapture(e.pointerId);
-    renderSfx(); drawSong();
+    renderSfx(); drawSong(); previewSfx(h.s);
     return;
   }
   if (h.lane === -1) {
@@ -1061,7 +1075,7 @@ cv.addEventListener('pointermove', e => {
     if (e.shiftKey) t = timeAt(Math.round(stepAtTime(t)));   // Shift: snap to the 16th-note grid
     sfxDrag.s.t = t;
     if (sfxDrag.s._label) sfxDrag.s._label.textContent = fmtFine(t);
-    drawSoon();
+    drawSoon(); previewSfx(sfxDrag.s);
     return;
   }
   if (!painting) return;
