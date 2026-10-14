@@ -26,6 +26,7 @@ button:hover,select:hover{border-color:#4a505c}
 .hgroup b{color:var(--text);font-weight:600}
 #tempo{width:150px;padding:0}
 .len input{width:52px;padding:4px 6px;text-align:right}
+#bpm{width:68px;padding:4px 6px;text-align:right}
 #pos{font-variant-numeric:tabular-nums;color:var(--text);min-width:110px}
 #exportBtn:disabled{opacity:.6;cursor:wait}
 
@@ -111,7 +112,7 @@ input[type=file]{display:none}
   <h1>Grid4</h1>
   <button id="play">Play</button>
   <span id="pos"></span>
-  <label class="hgroup">Tempo <input id="tempo" type="range" min="60" max="200" step="1"> <b id="bpm"></b> BPM</label>
+  <span class="hgroup">Tempo <input id="tempo" type="range" min="40" max="240" step="1"> <input id="bpm" type="number" min="40" max="240" step="any" title="Type a tempo and press Enter"> BPM</span>
   <span class="hgroup len">Length <input id="lenM" type="number" min="0" max="10"> : <input id="lenS" type="number" min="0" max="59" step="5"> <span id="lenInfo"></span></span>
   <button id="exportBtn" title="Render the whole song, from 0:00 to the end, as a WAV file">Export WAV</button>
 </header>
@@ -1186,8 +1187,17 @@ $('fitPic').onclick = () => {
 document.querySelectorAll('[data-fit]').forEach(b => b.onclick = () => {
   fitMode = b.dataset.fit; rebuildTime(); save(); renderPics(); render();
 });
-tempoIn.value = tempo; bpm.textContent = tempo;
-tempoIn.oninput = () => { tempo = +tempoIn.value; bpm.textContent = tempo; rebuildTime(); save(); renderPics(); render(); };
+// Tempo: drag the slider or type a number (takes effect on Enter or when you click away)
+function setTempo(v) {
+  if (!isFinite(v)) { bpm.value = tempo; return; }
+  tempo = Math.round(Math.min(240, Math.max(40, v)) * 100) / 100;
+  tempoIn.value = tempo; bpm.value = tempo;
+  rebuildTime(); save(); renderPics(); render();
+}
+tempoIn.value = tempo; bpm.value = tempo;
+tempoIn.oninput = () => setTempo(+tempoIn.value);
+bpm.onchange = () => setTempo(parseFloat(bpm.value));
+bpm.onkeydown = e => { if (e.key === 'Enter') bpm.blur(); };
 
 // Keep buttons from taking focus, so Space always means play/stop
 document.addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
